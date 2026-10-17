@@ -1022,19 +1022,7 @@ $('#taa').onclick = abreTexto;
 
 /* --- minhas vozes (clonagem no Kaggle) --- */
 let MINHAS = LS.get('minhas', []);
-const FRASES_GRAV = [
-  'Era uma tarde tranquila de domingo, e o sol entrava devagar pela janela da sala.',
-  'Você já percebeu como algumas histórias ficam guardadas na memória por muitos anos?',
-  'Os pássaros cantavam no quintal enquanto a chuva fina molhava as folhas das árvores.',
-  'Quando cheguei ao hospital, o plantão já tinha começado e havia muitos exames esperando.',
-  'Ela sorriu, respirou fundo e disse: hoje vai ser um dia diferente, eu tenho certeza!',
-  'O livro estava aberto sobre a mesa, com algumas páginas marcadas e anotações a lápis.',
-  'Três, quatro, cinco: contamos juntos até o barco desaparecer no horizonte.',
-  'Não sei explicar direito, mas aquela música sempre me lembra a casa da minha avó.',
-  'Será que amanhã vai fazer frio? Talvez seja melhor levar um casaco, só por garantia.',
-  'A ciência avança aos poucos, com perguntas simples, paciência e muita curiosidade.',
-  'Naquela noite, a cidade inteira parecia dormir, exceto a pequena padaria da esquina.',
-  'Obrigado por ouvir até aqui. Agora é só relaxar e aproveitar a leitura.'];
+const FRASES_GRAV = ["Era uma tarde tranquila de domingo, e o sol entrava devagar pela janela da sala.", "Você já percebeu como algumas histórias ficam guardadas na memória por muitos anos?", "Os pássaros cantavam no quintal enquanto a chuva fina molhava as folhas das árvores.", "Quando cheguei ao hospital, o plantão já tinha começado e havia muitos exames esperando.", "Ela sorriu, respirou fundo e disse: hoje vai ser um dia diferente, eu tenho certeza!", "O livro estava aberto sobre a mesa, com algumas páginas marcadas e anotações a lápis.", "Três, quatro, cinco: contamos juntos até o barco desaparecer no horizonte.", "Não sei explicar direito, mas aquela música sempre me lembra a casa da minha avó.", "Será que amanhã vai fazer frio? Talvez seja melhor levar um casaco, só por garantia.", "A ciência avança aos poucos, com perguntas simples, paciência e muita curiosidade.", "Naquela noite, a cidade inteira parecia dormir, exceto a pequena padaria da esquina.", "— Você vem comigo? — perguntou ele, já com a mão na maçaneta da porta.", "Que surpresa boa! Eu não esperava ver vocês aqui tão cedo.", "O trem partiu às sete e quinze, exatamente como estava marcado na passagem.", "Durante a reunião, todos concordaram que o projeto precisava de mais tempo.", "Minha mãe sempre dizia que a pressa é inimiga da perfeição, e ela tinha razão.", "O exame mostrou uma pequena lesão no fígado, sem sinais de complicação.", "Ele atravessou a ponte devagar, observando o rio que corria lá embaixo.", "Às vezes, o silêncio diz muito mais do que qualquer palavra.", "Vinte e oito por cento dos participantes responderam de forma positiva à pesquisa.", "Cuidado! O chão está molhado e alguém pode escorregar.", "No inverno, as montanhas ficam cobertas de neblina logo pela manhã.", "Eu adoraria tomar um café agora, de preferência bem quentinho e sem açúcar.", "A professora explicou a matéria com calma, e finalmente todo mundo entendeu.", "Quantas vezes eu já te pedi para fechar a janela antes de sair?", "O cachorro correu pelo jardim, latindo alegre atrás da bola vermelha.", "Segundo o relatório, as vendas aumentaram bastante no último trimestre.", "Ninguém imaginava que aquela pequena decisão mudaria tudo para sempre.", "Respire fundo, conte até dez e só então responda com tranquilidade.", "Na feira de sábado havia frutas de todas as cores: manga, caqui, uva e maracujá.", "O avião pousou suavemente, e os passageiros aplaudiram aliviados.", "Ela abriu a carta com as mãos trêmulas e leu cada linha em voz baixa.", "Por favor, desligue o celular e preste atenção no que vou dizer agora.", "Foi a melhor viagem da minha vida, sem dúvida nenhuma!", "A tomografia de tórax não evidenciou nódulos pulmonares suspeitos.", "Entre um gole de chá e outro, ele contou histórias da juventude.", "Os resultados chegaram rápido, mas ainda precisam ser analisados com cuidado.", "Lá fora, o vento assobiava entre as árvores e balançava as janelas.", "Você prefere praia ou montanha? Eu fico sempre na dúvida.", "Depois de muito esforço, a equipe conseguiu terminar o trabalho no prazo.", "O relógio da igreja bateu meia-noite, e a festa ainda estava animada.", "Fiquei impressionado com a gentileza daquele senhor no ponto de ônibus.", "Calma, não precisa se preocupar; vai dar tudo certo no final.", "A biblioteca da cidade guarda livros raros, alguns com mais de cem anos.", "Ele franziu a testa, pensou um pouco e respondeu: acho que não é bem assim.", "Nas férias, a família inteira viajou de carro até o litoral do Nordeste.", "O paciente relatou dor abdominal há três dias, com piora após as refeições.", "Que noite linda! Dá para ver todas as estrelas do céu daqui de cima.", "Organizar a casa no fim de semana virou quase uma terapia para mim.", "Os números não mentem, mas às vezes contam apenas parte da história.", "Ela riu tanto que precisou sentar para recuperar o fôlego.", "Antigamente, as cartas demoravam semanas para chegar ao destino.", "Se eu pudesse voltar no tempo, aproveitaria mais cada momento simples.", "O motorista freou de repente, e todos no ônibus se seguraram como puderam.", "Hoje aprendi uma coisa nova: nunca é tarde para recomeçar.", "A orquestra começou a tocar, e o teatro inteiro ficou em silêncio absoluto.", "Meu avô plantava milho, feijão e abóbora no pequeno sítio perto do rio.", "Atenção, passageiros: o embarque para Florianópolis acontece no portão doze.", "Ele pediu desculpas sinceras, e ela, emocionada, aceitou com um abraço.", "Obrigado por ouvir até aqui. Agora é só relaxar e aproveitar a leitura."];
 async function carregaMinhas() {
   try { const r = await gh(`/contents/vozes-proprias/${DEV}`); if (!r.ok) { MINHAS = []; LS.set('minhas', []); return }
     const dirs = (await r.json()).filter(x => x.type === 'dir'), out = [];
@@ -1059,7 +1047,7 @@ function abreMinhas() {
 const qualidade = s => (s = s || 0) < 15 ? {txt: 'insuficiente', cor: '#ef4444', p: s / 60} : s < 40 ? {txt: 'razoável', cor: '#f59e0b', p: s / 60} : s < 90 ? {txt: 'boa', cor: '#22c55e', p: Math.min(1, s / 90)} : {txt: 'ótima', cor: '#16a34a', p: 1};
 function editaVoz(v) {
   const nova = !v; v = v || {vid: '', nome: '', genero: 'F', segundos: 0, clips: 0};
-  let rec = null, chunks = [], t0 = 0, idx = (v.clips || 0) % FRASES_GRAV.length;
+  let rec = null, chunks = [], t0 = 0; const ordem = LS.get('ordemFrases', null) || FRASES_GRAV.map((_, i) => i).sort(() => Math.random() - .5); LS.set('ordemFrases', ordem); let pos = LS.get('posFrase', 0); const fr = () => FRASES_GRAV[ordem[pos % ordem.length]]; const avanca = () => { pos++; LS.set('posFrase', pos) };
   const desenha = () => { const q = qualidade(v.segundos);
     sheet(`<h2>${nova ? 'Criar voz' : 'Aprimorar ' + esc(v.nome)}</h2>
       ${nova ? `<span class="lab">Nome da voz</span><input class="inp" id="vn" placeholder="Ex.: Artur, Juliana"><span class="lab">Tipo</span><div class="pills"><button data-g="F" class="sel">Feminina</button><button data-g="M">Masculina</button></div>
@@ -1067,39 +1055,50 @@ function editaVoz(v) {
       <span class="lab">Qualidade: <b style="color:${q.cor}">${q.txt}</b> · ${Math.round(v.segundos)} s gravados (ideal: 1–3 min)</span>
       <div style="height:8px;background:var(--bg3);border-radius:8px;overflow:hidden"><div style="height:100%;width:${q.p * 100}%;background:${q.cor}"></div></div>
       <span class="lab">Leia em voz alta, com calma e naturalidade:</span>
-      <p style="font:19px/1.5 var(--ff);background:var(--bg3);padding:14px;border-radius:14px" id="fr">${esc(FRASES_GRAV[idx])}</p>
+      <p style="font:19px/1.5 var(--ff);background:var(--bg3);padding:14px;border-radius:14px" id="fr">${esc(fr())}</p>
       <div style="display:flex;gap:10px"><button class="btn" id="vrec" style="margin:0;flex:2">● Gravar</button><button class="btn2" id="vprox" style="margin:0;flex:1">Outra frase</button></div>
       <label class="btn2" style="text-align:center">📎 Enviar áudio pronto (WhatsApp, gravador…)<input type="file" accept="audio/*,video/mp4" hidden id="vup"></label>
-      <p class="note">Dicas: lugar silencioso, celular a uns 20 cm da boca, mesmo tom de leitura de livro. Quanto mais frases (até ~3 min), mais parecida fica.</p>
-      <button class="btn" id="vsalva">${nova ? 'Criar voz e gerar amostra' : 'Atualizar amostra'}</button>
+      <p class="note">Dicas para ficar fiel: cômodo silencioso e sem eco (quarto com cortinas/roupas é melhor que banheiro ou cozinha), celular sempre na mesma distância (~20 cm), leia como se estivesse contando uma história, sem pressa. Apague gravações com ruído, tosse ou risada. 10 a 20 frases boas bastam.</p>
+      ${nova ? '' : `<span class="lab">Expressividade <b id="vexv">${v.exag ?? 0.5}</b> (mais neutra ↔ mais emotiva)</span><input type="range" class="fsr" id="vex" min="0.25" max="1" step="0.05" value="${v.exag ?? 0.5}">
+      <span class="lab">Fidelidade ao ritmo da sua fala <b id="vcfv">${v.cfg ?? 0.5}</b> (mais solta ↔ mais colada)</span><input type="range" class="fsr" id="vcf" min="0.2" max="0.8" step="0.05" value="${v.cfg ?? 0.5}">
+      <span class="lab">Gravações</span><div id="vclips"><p class="note"><span class="spin"></span></p></div>`}
+      <button class="btn" id="vsalva">${nova ? 'Criar voz e gerar amostra' : 'Salvar e gerar nova amostra'}</button>
       ${nova ? '' : '<button class="btn2" id="vdel" style="color:#ef4444">Apagar esta voz</button>'}`);
     $('#sh').querySelectorAll('[data-g]').forEach(b => b.onclick = () => { v.genero = b.dataset.g; $('#sh').querySelectorAll('[data-g]').forEach(x => x.classList.toggle('sel', x === b)) });
-    $('#vprox').onclick = () => { idx = (idx + 1) % FRASES_GRAV.length; $('#fr').textContent = FRASES_GRAV[idx] };
+    $('#vprox').onclick = () => { avanca(); $('#fr').textContent = fr() };
     $('#vrec').onclick = () => rec ? rec.stop() : grava();
     $('#vup').onchange = async e => { const f = e.target.files[0]; if (!f) return; if (!await garanteId()) return;
       const dur = await new Promise(r => { const a = new Audio(URL.createObjectURL(f)); a.onloadedmetadata = () => r(isFinite(a.duration) ? a.duration : 20); a.onerror = () => r(20) });
       await sobeClip(f, (f.name.split('.').pop() || 'm4a').toLowerCase(), dur) };
     $('#vsalva').onclick = salva; $('#vdel') && ($('#vdel').onclick = apaga);
+    if ($('#vex')) { $('#vex').oninput = e => { v.exag = +e.target.value; $('#vexv').textContent = e.target.value }; $('#vcf').oninput = e => { v.cfg = +e.target.value; $('#vcfv').textContent = e.target.value }; listaClips() }
   };
   const garanteId = async () => { if (v.vid) return true;
     const nome = $('#vn')?.value.trim(); if (!nome) { toast('Dê um nome à voz'); return false } if (!$('#vok')?.checked) { toast('Confirme que a voz é sua ou autorizada'); return false }
     v.nome = nome; v.vid = nomeSeguro(nome).toLowerCase().replace(/_/g, '-').slice(0, 24) + '-' + Date.now().toString(36).slice(-4); return true };
   async function grava() {
     if (!await garanteId()) return;
-    let st; try { st = await navigator.mediaDevices.getUserMedia({audio: {noiseSuppression: true, echoCancellation: false, autoGainControl: true}}) } catch { return toast('Permita o microfone para gravar') }
+    let st; try { st = await navigator.mediaDevices.getUserMedia({audio: {noiseSuppression: false, echoCancellation: false, autoGainControl: false, channelCount: 1}}) } catch { return toast('Permita o microfone para gravar') }
     const tipo = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find(t => window.MediaRecorder?.isTypeSupported?.(t)) || '';
-    rec = new MediaRecorder(st, tipo ? {mimeType: tipo} : {}); chunks = []; t0 = Date.now();
+    rec = new MediaRecorder(st, {...(tipo ? {mimeType: tipo} : {}), audioBitsPerSecond: 128000}); chunks = []; t0 = Date.now();
     rec.ondataavailable = e => chunks.push(e.data);
     rec.onstop = async () => { st.getTracks().forEach(t => t.stop()); const dur = (Date.now() - t0) / 1000, b = new Blob(chunks, {type: rec.mimeType}); rec = null;
       $('#vrec').textContent = '● Gravar'; $('#vrec').style.background = '';
       if (dur < 2) return toast('Gravação muito curta');
-      await sobeClip(b, rec?.mimeType?.includes('mp4') || b.type.includes('mp4') ? 'm4a' : 'webm', dur); idx = (idx + 1) % FRASES_GRAV.length; desenha() };
+      await sobeClip(b, rec?.mimeType?.includes('mp4') || b.type.includes('mp4') ? 'm4a' : 'webm', dur); avanca(); desenha() };
     rec.start(); $('#vrec').textContent = '■ Parar'; $('#vrec').style.background = '#ef4444';
   }
   async function sobeClip(b, ext, dur) { toast('Enviando gravação…');
     const r = await putArq(`vozes-proprias/${DEV}/${v.vid}/clip_${Date.now()}.${ext}`, await blob64(b), 'gravação de voz');
     if (!r.ok) return toast('Erro ao enviar (' + r.status + ')'); v.segundos = (v.segundos || 0) + dur; v.clips = (v.clips || 0) + 1; await gravaMeta(); toast('Gravação salva ✓'); desenha() }
-  async function gravaMeta() { const meta = {nome: v.nome, genero: v.genero, segundos: Math.round(v.segundos), clips: v.clips, atualizado: Date.now()};
+  async function listaClips() { const r = await gh(`/contents/vozes-proprias/${DEV}/${v.vid}`); if (!r.ok || !$('#vclips')) return;
+    const cl = (await r.json()).filter(f => f.name.startsWith('clip_'));
+    $('#vclips').innerHTML = cl.map((f, i) => `<div class="row"><button class="pv" data-p="${f.path}" style="width:36px;height:36px;border-radius:50%;background:var(--bg3);display:grid;place-items:center"><svg style="width:18px;height:18px"><use href="#i-play"/></svg></button><div class="grow">Gravação ${i + 1}<small>${new Date(+f.name.match(/\d+/)[0]).toLocaleString('pt-BR')}</small></div><button data-x="${f.path}" data-sha="${f.sha}" style="color:var(--tx3);padding:8px">✕</button></div>`).join('') || '<p class="note">Nenhuma gravação.</p>';
+    $('#vclips').querySelectorAll('[data-p]').forEach(b => b.onclick = async () => { try { const bl = await (await raw(b.dataset.p)).blob(); prevAu.src = URL.createObjectURL(bl); prevAu.play() } catch { toast('Não deu para tocar') } });
+    $('#vclips').querySelectorAll('[data-x]').forEach(b => b.onclick = async () => { if (!confirm('Apagar esta gravação?')) return;
+      await gh('/contents/' + b.dataset.x, {method: 'DELETE', body: JSON.stringify({message: 'apaga gravação', sha: b.dataset.sha})});
+      v.clips = Math.max(0, (v.clips || 1) - 1); v.segundos = Math.max(0, (v.segundos || 0) * v.clips / (v.clips + 1)); await gravaMeta(); listaClips(); toast('Gravação apagada') }) }
+  async function gravaMeta() { const meta = {nome: v.nome, genero: v.genero, segundos: Math.round(v.segundos), clips: v.clips, atualizado: Date.now(), exag: v.exag ?? 0.5, cfg: v.cfg ?? 0.5};
     await putArq(`vozes-proprias/${DEV}/${v.vid}/voz.json`, b64txt(JSON.stringify(meta)), 'voz própria'); Object.assign(v, meta);
     const i = MINHAS.findIndex(x => x.vid === v.vid); if (i >= 0) MINHAS[i] = {...v}; else MINHAS.push({...v}); LS.set('minhas', MINHAS) }
   async function salva() { if (!await garanteId()) return; if ((v.segundos || 0) < 10) return toast('Grave pelo menos uns 10 segundos (2–3 frases)');
