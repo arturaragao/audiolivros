@@ -360,7 +360,7 @@ function ligaVozes(onSel) {
     $('#sh').querySelectorAll('.pv use').forEach(u => u.setAttribute('href', '#i-play'));
     use.setAttribute('href', '#i-pause');
     try { prevAu.src = URL.createObjectURL(await cached(`vozes/${id}.mp3`, 1)); prevAu.dataset.id = id; await prevAu.play() }
-    catch { use.setAttribute('href', '#i-play'); toast(id.startsWith('g-') ? 'Vozes do Google ainda não ativadas (falta a chave do Google)' : 'Amostra ainda não gerada') }
+    catch { use.setAttribute('href', '#i-play'); toast(id.startsWith('g') ? 'Amostra do Google ainda não gerada (falta a chave no GitHub)' : 'Amostra ainda não gerada') }
     prevAu.onended = prevAu.onpause = () => use.setAttribute('href', '#i-play');
   });
 }
