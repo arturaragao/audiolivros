@@ -71,8 +71,9 @@ svg{width:24px;height:24px;fill:currentColor;flex:none}
 #txt p{margin:0 0 1em;padding:2px 6px;margin-left:-6px;margin-right:-6px;border-radius:8px;transition:background .3s}
 #txt .fig{margin:1.2em 0;text-align:center}
 #txt .fig img{max-width:100%;max-height:60vh;border-radius:6px}
-#txt.epub p{margin:0 0 .6em}
-#txt.epub h1,#txt.epub h2,#txt.epub h3{line-height:1.3;margin:1.2em 0 .8em}
+#txt section+section{border-top:1px dashed var(--bg3);margin-top:2.5em;padding-top:1.5em}
+#txt .epub p{margin:0 0 .6em}
+#txt .epub h1,#txt .epub h2,#txt .epub h3{line-height:1.3;margin:1.2em 0 .8em}
 #txt > *.cur{background:var(--pbg)}
 #txt p.h{font-weight:600;font-size:1.15em;margin-bottom:1.2em}
 #txt w{border-radius:4px;transition:background .12s,color .12s;cursor:pointer}
@@ -472,15 +473,26 @@ $('#pclose').onclick = () => history.back();
 addEventListener('popstate', () => { if (ignoraPop) { ignoraPop--; return } if ($('#sh').classList.contains('on')) escondeSheet(); else if ($('#pl').classList.contains('on')) fechaPlayer() });
 
 let words = [], wIdx = -1, paras = [], pIdx = -1, autoScroll = true, loadTok = 0;
+/* ---- rolagem contínua: cada capítulo é uma <section> ---- */
+let SECS = {}, SECS_LIVRO = null, _alvo = null, carregandoSec = false;
+function montaSecao(d, n) {
+  const sec = document.createElement('section'); sec.dataset.cap = n;
+  const sv = [words, paras, cur?.dados]; _alvo = sec;
+  try { renderTexto(d); SECS[n] = {el: sec, words, paras, dados: d} } finally { _alvo = null; [words, paras] = sv; if (cur) cur.dados = sv[2] }
+  return sec;
+}
+function ativa(n) { const s0 = SECS[n]; if (!s0) return; words = s0.words; paras = s0.paras; cur.dados = s0.dados; wIdx = pIdx = -1 }
+const jsonCap = (m, n) => cached(`${BASE}/${m.id}/${m.capitulos[n].arq}.json`, m.criado, 'json');
 async function abreCap(m, n, t = 0, play = true) {
-  const tok = ++loadTok, c = m.capitulos[n];
+  const tok = ++loadTok, c = m.capitulos[n], tx = $('#txt');
   cur = {livro: m, cap: n}; renderMini();
   $('#ptitle').textContent = m.titulo; $('#pcap').textContent = c.titulo; $('#tcap').textContent = `${n + 1}/${m.total}`;
-  $('#txt').innerHTML = '<div class="load"><span class="spin"></span><br><br>Carregando capítulo…</div>';
+  if (SECS_LIVRO !== m.id || !SECS[n]) { SECS = {}; SECS_LIVRO = m.id; tx.innerHTML = '<div class="load"><span class="spin"></span><br><br>Carregando capítulo…</div>' }
   try {
-    const [d, blob] = await Promise.all([cached(`${BASE}/${m.id}/${c.arq}.json`, m.criado, 'json'), cached(`${BASE}/${m.id}/${c.arq}.mp3`, m.criado)]);
+    const [d, blob] = await Promise.all([SECS[n] ? null : jsonCap(m, n), cached(`${BASE}/${m.id}/${c.arq}.mp3`, m.criado)]);
     if (tok !== loadTok) return;
-    renderTexto(d);
+    if (d) { tx.innerHTML = ''; tx.append(montaSecao(d, n)) }
+    ativa(n);
     if (au.src) URL.revokeObjectURL(au.src);
     au.src = URL.createObjectURL(blob); au.playbackRate = PREFS.speed;
     await new Promise(r => au.addEventListener('loadedmetadata', r, {once: true}));
@@ -489,8 +501,22 @@ async function abreCap(m, n, t = 0, play = true) {
     mediaSession();
     if (play) au.play().catch(() => {});
     if (n + 1 < m.capitulos.length) setTimeout(() => cached(`${BASE}/${m.id}/${m.capitulos[n + 1].arq}.mp3`, m.criado).catch(() => {}), 4000);
-  } catch (e) { $('#txt').innerHTML = `<div class="load">Não foi possível carregar.<br><small>${esc(e.message)}</small></div>` }
+    setTimeout(estendeRolagem, 300);
+  } catch (e) { if (!SECS[n]) tx.innerHTML = `<div class="load">Não foi possível carregar.<br><small>${esc(e.message)}</small></div>` }
 }
+async function estendeRolagem() {
+  if (carregandoSec || !cur || !$('#pl').classList.contains('on')) return; const tx = $('#txt'), m = cur.livro, ns = Object.keys(SECS).map(Number); if (!ns.length) return;
+  const max = Math.max(...ns), min = Math.min(...ns);
+  carregandoSec = true;
+  try {
+    if (tx.scrollTop + tx.clientHeight > tx.scrollHeight - 1600 && max + 1 < m.capitulos.length) { const d = await jsonCap(m, max + 1); if (SECS_LIVRO === m.id && !SECS[max + 1]) { tx.append(montaSecao(d, max + 1)); pintaMarcas() } }
+    else if (tx.scrollTop < 900 && min > 0) { const d = await jsonCap(m, min - 1); if (SECS_LIVRO === m.id && !SECS[min - 1]) { const h0 = tx.scrollHeight; tx.prepend(montaSecao(d, min - 1)); tx.scrollTop += tx.scrollHeight - h0; pintaMarcas() } }
+  } catch {} finally { carregandoSec = false }
+}
+let _rolT; $('#txt').addEventListener('scroll', () => { clearTimeout(_rolT); _rolT = setTimeout(() => { estendeRolagem();
+  if (!autoScroll && cur) { const box = $('#txt').getBoundingClientRect(); const sec = [...$('#txt').children].find(x => x.getBoundingClientRect().bottom > box.top + 80);
+    if (sec?.dataset.cap != null) { const n = +sec.dataset.cap; $('#pcap').textContent = cur.livro.capitulos[n].titulo; $('#tcap').textContent = `${n + 1}/${cur.livro.total}` } } }, 120) }, {passive: true});
+const secDe = el => +el.closest('section')?.dataset.cap;
 const TAGS_OK = /^(p|h[1-6]|li|blockquote|pre|dd|dt|figcaption|caption)$/;
 function renderTexto(d) {
   const frag = document.createDocumentFragment(); words = []; paras = [];
@@ -527,7 +553,7 @@ function renderTexto(d) {
     }
     paras.push({s: p.s, e: p.e, el}); frag.append(el);
   });
-  const tx = $('#txt'); tx.innerHTML = ''; tx.append(frag); wIdx = pIdx = -1;
+  const tx = _alvo || $('#txt'); tx.innerHTML = ''; tx.append(frag); wIdx = pIdx = -1;
   tx.classList.toggle('epub', !!cur?.livro?.css); carregaCSS();
 }
 async function carregaCSS() { const l = cur?.livro; let st = $('#epubcss'); if (!st) { st = document.createElement('style'); st.id = 'epubcss'; document.head.append(st) }
@@ -548,7 +574,7 @@ let scrollProg = false, raf;
 const loop = () => { sync(); raf = au.paused ? 0 : requestAnimationFrame(loop) };
 ['touchmove', 'wheel'].forEach(ev => $('#txt').addEventListener(ev, () => { if (!au.paused || true) { autoScroll = false; $('#back2').classList.remove('hide') } }, {passive: true}));
 $('#back2').onclick = () => { autoScroll = true; $('#back2').classList.add('hide'); sync(true) };
-$('#txt').addEventListener('click', e => { const w = e.target.closest('w'); if (!w) return; au.currentTime = words[+w.dataset.i].t + 0.01; autoScroll = true; $('#back2').classList.add('hide'); au.play(); sync(true) });
+$('#txt').addEventListener('click', e => { const w = e.target.closest('w'); if (!w) return; const n = secDe(w); if (n !== cur.cap) { abreCap(cur.livro, n, SECS[n].words[+w.dataset.i].t + .01, true); return } au.currentTime = words[+w.dataset.i].t + 0.01; autoScroll = true; $('#back2').classList.add('hide'); au.play(); sync(true) });
 
 const icoPP = () => { const u = au.paused ? '#i-play' : '#i-pause'; $('#bpp use').setAttribute('href', u); $('#mpp use').setAttribute('href', u) };
 au.onplay = () => { icoPP(); if (!raf) raf = requestAnimationFrame(loop); navigator.mediaSession && (navigator.mediaSession.playbackState = 'playing') };
@@ -718,7 +744,7 @@ const CORES = {amarelo: '#fde68a', verde: '#bbf7d0', rosa: '#fbcfe8', laranja: '
 const rotulos = () => Object.assign({amarelo: 'Amarelo', verde: 'Verde', rosa: 'Rosa', laranja: 'Laranja', azul: 'Azul'}, LS.get('rotulos', {}));
 const marcas = id => LS.get('marcas.' + id, []).map(m => ({cor: 'amarelo', ...m}));
 function pintaMarcas() { if (!cur) return; document.querySelectorAll('#txt w[data-mk]').forEach(e => { e.removeAttribute('data-mk'); e.style.removeProperty('--mk') });
-  for (const mk of marcas(cur.livro.id)) if (mk.cap === cur.cap) for (let i = mk.w0; i <= mk.w1 && i < words.length; i++) { words[i].el.dataset.mk = 1; words[i].el.style.setProperty('--mk', CORES[mk.cor] || CORES.amarelo) } }
+  for (const mk of marcas(cur.livro.id)) { const sc = SECS[mk.cap]; if (!sc) continue; for (let i = mk.w0; i <= mk.w1 && i < sc.words.length; i++) { sc.words[i].el.dataset.mk = 1; sc.words[i].el.style.setProperty('--mk', CORES[mk.cor] || CORES.amarelo) } } }
 function salvaMarca(w0, w1, cor, nota = '') { const id = cur.livro.id, l = LS.get('marcas.' + id, []);
   const txt = trecho(w0, w1); l.push({cap: cur.cap, w0, w1, t: words[w0].t, txt, nota, cor, ts: Date.now(), capt: cur.livro.capitulos[cur.cap].titulo});
   LS.set('marcas.' + id, l); dirty(); pintaMarcas(); toast('Marcado em ' + rotulos()[cor].toLowerCase()) }
@@ -741,7 +767,7 @@ $('#tmk').onclick = () => abreMarcas(cur.livro.id);
 
 /* --- seleção: segurar e arrastar --- */
 let selA = null, selB = null, selando = false, lpT2 = null, lpXY = null;
-const wordAt = (x, y) => { const el = document.elementFromPoint(x, y)?.closest?.('#txt w'); return el ? +el.dataset.i : null };
+const wordAt = (x, y) => { const el = document.elementFromPoint(x, y)?.closest?.('#txt w'); if (!el) return null; const n = secDe(el); if (cur && n !== cur.cap) { if (!selando) abreCap(cur.livro, n, SECS[n].words[+el.dataset.i].t + .01, !au.paused); return null } return +el.dataset.i };
 function pintaSel() { document.querySelectorAll('#txt w.sel').forEach(x => x.classList.remove('sel')); if (selA == null) return; const [a, b] = [Math.min(selA, selB), Math.max(selA, selB)]; for (let i = a; i <= b; i++) words[i].el.classList.add('sel') }
 $('#txt').addEventListener('pointerdown', e => { const wi = wordAt(e.clientX, e.clientY); if (wi == null) return; lpXY = [e.clientX, e.clientY];
   lpT2 = setTimeout(() => { lpT2 = null; fechaMenuPalavra(); selando = true; selA = selB = wi; pintaSel(); navigator.vibrate?.(15) }, 450) });
@@ -852,9 +878,9 @@ $('#psrch').onclick = () => { const m = cur.livro;
 
 /* --- ouvir a partir de onde estou lendo --- */
 $('#back2').insertAdjacentHTML('afterend', '<button id="daqui" class="hide" style="position:absolute;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 236px);background:var(--bg3);color:var(--tx);font-weight:600;font-size:13px;padding:9px 16px;border-radius:99px;box-shadow:0 6px 20px rgba(0,0,0,.35)">▶ Ouvir a partir daqui</button>');
-const visivel = () => { const box = $('#txt').getBoundingClientRect(); return words.find(w => { const r = w.el.getBoundingClientRect(); return r.top >= box.top + 10 && r.bottom < box.bottom }) };
+const visivel = () => { const box = $('#txt').getBoundingClientRect(); const el = [...$('#txt').querySelectorAll('w[data-i]')].find(w => { const r = w.getBoundingClientRect(); return r.top >= box.top + 10 && r.bottom < box.bottom }); if (!el) return null; const n = secDe(el); return {n, t: SECS[n].words[+el.dataset.i].t} };
 new MutationObserver(() => $('#daqui').classList.toggle('hide', $('#back2').classList.contains('hide'))).observe($('#back2'), {attributes: true});
-$('#daqui').onclick = () => { const w = visivel(); if (w) au.currentTime = w.t + .01; autoScroll = true; $('#back2').classList.add('hide'); au.play(); sync(true) };
+$('#daqui').onclick = () => { const w = visivel(); if (w && w.n !== cur.cap) { abreCap(cur.livro, w.n, w.t + .01, true); return } if (w) au.currentTime = w.t + .01; autoScroll = true; $('#back2').classList.add('hide'); au.play(); sync(true) };
 
 /* --- fim do livro → estatística --- */
 au.addEventListener('ended', () => { if (cur && cur.cap + 1 >= cur.livro.total && cur.livro.pronto >= cur.livro.total) marcaConcluido(cur.livro.id) });
@@ -946,7 +972,7 @@ applyPrefs();
 PREFS.ww ??= 1; PREFS.wwNivel ??= 3;  // nível 1 (poucas dicas) a 5 (muitas)
 const WW_CORTE = [0, 30, 33, 35, 37, 40];
 function aplicaWW() {
-  document.querySelectorAll('#txt rt.ww').forEach(r => { const rb = r.parentElement; rb.replaceWith(rb.firstChild.textContent) });
+  paras.flatMap(p => [...p.el.querySelectorAll('rt.ww')]).forEach(r => { const rb = r.parentElement; rb.replaceWith(rb.firstChild.textContent) });
   if (!PREFS.ww || !cur?.dados) return; const corte = WW_CORTE[PREFS.wwNivel];
   cur.dados.p.forEach((p, pi) => { if (!p.g) return; const pal = paras[pi].el.querySelectorAll('w');
     for (let k = 0; k < p.g.length; k += 3) { if (p.g[k + 1] >= corte) continue;
@@ -955,6 +981,7 @@ function aplicaWW() {
 }
 const _renderTexto = renderTexto;
 renderTexto = d => { _renderTexto(d); if (cur) cur.dados = d; aplicaWW() };
+const aplicaWWTodas = () => { const sv = [words, paras, cur?.dados]; for (const sc of Object.values(SECS)) { words = sc.words; paras = sc.paras; cur.dados = sc.dados; aplicaWW() } [words, paras] = sv; if (cur) cur.dados = sv[2] };
 // versão do JSON muda quando o Word Wise é adicionado depois → força baixar de novo
 const _cached = cached;
 cached = (p, ver, tipo) => _cached(p, /\/cap_\d+\.json$/.test(p) && cur?.livro?.ww ? ver + '-' + cur.livro.ww : ver, tipo);
@@ -965,8 +992,8 @@ abreTexto = () => { _abreTexto(); const l = cur?.livro; if (!l) return;
     : `<div class="pills"><button id="wwt" class="${PREFS.ww ? 'sel' : ''}">${PREFS.ww ? 'Ligado' : 'Desligado'}</button></div><span class="lab">Quantidade de dicas <b id="wwnv">${PREFS.wwNivel}</b></span><input type="range" class="fsr" id="wwn" min="1" max="5" value="${PREFS.wwNivel}">`}`);
   $('#wwon') && ($('#wwon').onclick = async () => { const r = await gh(`/contents/entrada/wordwise-${DEV}--${l.id}.json`, {method: 'PUT', body: JSON.stringify({message: 'wordwise ' + l.id, content: b64txt(JSON.stringify({id: l.id, dev: DEV}))})});
     toast(r.ok ? 'Pedido enviado. Reabra o livro em alguns minutos.' : 'Erro (' + r.status + ')'); closeSheet() });
-  $('#wwt') && ($('#wwt').onclick = () => { PREFS.ww = PREFS.ww ? 0 : 1; savePrefs(); aplicaWW(); abreTexto() });
-  $('#wwn') && ($('#wwn').oninput = e => { PREFS.wwNivel = +e.target.value; $('#wwnv').textContent = e.target.value; savePrefs(); aplicaWW() }) };
+  $('#wwt') && ($('#wwt').onclick = () => { PREFS.ww = PREFS.ww ? 0 : 1; savePrefs(); aplicaWWTodas(); abreTexto() });
+  $('#wwn') && ($('#wwn').oninput = e => { PREFS.wwNivel = +e.target.value; $('#wwnv').textContent = e.target.value; savePrefs(); aplicaWWTodas() }) };
 $('#taa').onclick = abreTexto;
 
 /* ---------- início ---------- */
