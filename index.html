@@ -13,6 +13,10 @@
 <style>
 :root{--bg:#0d0d0f;--bg2:#17171a;--bg3:#222226;--tx:#f4f4f5;--tx2:#a1a1aa;--tx3:#6b6b75;--ac:#fff;--hl:#3b82f6;--hlbg:rgba(59,130,246,.22);--pbg:rgba(255,255,255,.04);--rd:16px;--fs:20px;--ff:'Literata',Georgia,serif}
 :root[data-theme=light]{--bg:#fafaf9;--bg2:#fff;--bg3:#ececea;--tx:#18181b;--tx2:#52525b;--tx3:#a1a1aa;--ac:#000;--hl:#2563eb;--hlbg:rgba(37,99,235,.16);--pbg:rgba(0,0,0,.03)}
+:root[data-theme=noite]{--bg:#14100c;--bg2:#1e1812;--bg3:#2c241b;--tx:#e8c99a;--tx2:#b89a72;--tx3:#7d6850;--ac:#e8c99a;--hl:#f59e0b;--hlbg:rgba(245,158,11,.2);--pbg:rgba(232,201,154,.05)}
+:root[data-theme=verde]{--bg:#e4ecdc;--bg2:#eef3e8;--bg3:#d3dec8;--tx:#26331f;--tx2:#4f5f45;--tx3:#8a9a80;--ac:#26331f;--hl:#3f7a2e;--hlbg:rgba(63,122,46,.16);--pbg:rgba(0,0,0,.03)}
+:root[data-theme=cinza]{--bg:#e7e5e1;--bg2:#f0eeeb;--bg3:#d6d3ce;--tx:#2b2b2b;--tx2:#5a5a5a;--tx3:#999;--ac:#2b2b2b;--hl:#444;--hlbg:rgba(0,0,0,.12);--pbg:rgba(0,0,0,.03)}
+#filtro{position:fixed;inset:0;pointer-events:none;z-index:100;mix-blend-mode:multiply}
 :root[data-theme=sepia]{--bg:#f4ecd8;--bg2:#fbf5e6;--bg3:#e8dcc0;--tx:#3b2f20;--tx2:#6b5a43;--tx3:#a08e72;--ac:#3b2f20;--hl:#b45309;--hlbg:rgba(180,83,9,.18);--pbg:rgba(0,0,0,.03)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 Inter,system-ui,sans-serif;overscroll-behavior:none}
@@ -58,17 +62,22 @@ svg{width:24px;height:24px;fill:currentColor;flex:none}
 .ph .tt{flex:1;min-width:0;text-align:center}
 .ph .tt b,.ph .tt span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ph .tt span{font-size:12px;color:var(--tx2)}
-#txt{flex:1;overflow-y:auto;padding:12px 22px 40vh;font:var(--fs)/1.7 var(--ff);max-width:720px;width:100%;margin:auto;scroll-behavior:auto}
+#txt{flex:1;overflow-y:auto;padding:12px var(--marg,22px) 40vh;font:var(--fs)/var(--lh,1.7) var(--ff);max-width:720px;width:100%;margin:auto;scroll-behavior:auto}
 #txt p{margin:0 0 1em;padding:2px 6px;margin-left:-6px;margin-right:-6px;border-radius:8px;transition:background .3s}
 #txt p.cur{background:var(--pbg)}
 #txt p.h{font-weight:600;font-size:1.15em;margin-bottom:1.2em}
 #txt w{border-radius:4px;transition:background .12s,color .12s;cursor:pointer}
-#wmenu{position:fixed;z-index:25;display:flex;background:var(--tx);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}
+#wmenu{position:fixed;z-index:25;display:flex;flex-direction:column;background:var(--tx);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}
 #wmenu button{display:flex;align-items:center;gap:6px;padding:10px 14px;color:var(--bg);font-weight:600;font-size:14px}
-#wmenu button+button{border-left:1px solid rgba(128,128,128,.35)}
 #wmenu svg{width:18px;height:18px;fill:var(--bg)}
-#txt w.sel{background:var(--hl);color:#fff}
-#txt w.mk{background:rgba(250,204,21,.28);border-radius:0}
+#txt{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#txt w[data-mk]{background:var(--mk);color:#1a1a1a;border-radius:0}
+#txt w.sel{background:var(--hl)!important;color:#fff!important}
+#wmenu .wcores{display:flex;gap:8px;padding:10px 12px;align-items:center;border-bottom:1px solid rgba(128,128,128,.35)}
+#wmenu .wcores button{width:28px;height:28px;border-radius:50%;padding:0;border:2px solid rgba(0,0,0,.15)}
+#wmenu .wcores .wnota{width:auto;border:0;border-radius:99px;padding:4px 10px;background:rgba(128,128,128,.25);color:var(--bg);font-size:13px;font-weight:600}
+#wmenu .wacoes{display:flex;flex-wrap:wrap;max-width:330px}
+#wmenu .wacoes button{flex:1 0 33%;flex-direction:column;gap:3px;font-size:11.5px;padding:9px 4px;border:0!important}
 #txt w.on{background:var(--hlbg);color:var(--hl);box-shadow:0 0 0 2px var(--hlbg)}
 #txt .load{color:var(--tx2);font:15px Inter,sans-serif;text-align:center;padding-top:30vh}
 #back2{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 190px);background:var(--ac);color:var(--bg);font-weight:600;font-size:13px;padding:9px 16px;border-radius:99px;box-shadow:0 6px 20px rgba(0,0,0,.35);display:flex;gap:6px;align-items:center}
@@ -641,48 +650,10 @@ async function exportaMP3(l, el) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(partes, {type: 'audio/mpeg'})); a.download = nomeSeguro(m.titulo) + '.mp3'; a.click();
   el.textContent = 'Pronto ✓ (veja em Downloads)' }
 
-/* --- marcadores / destaques --- */
 function fraseDe(wi) { const w = words[wi], p = paras[w.p], txt = p.el.textContent; let a = 0, b = txt.length;
   for (const m of txt.matchAll(/[^.!?…]+[.!?…]*["”»’)]*\s*/g)) { if (m.index <= w.c && w.c < m.index + m[0].length) { a = m.index; b = m.index + m[0].length; break } }
   let w0 = wi, w1 = wi; while (w0 > 0 && words[w0 - 1].p === w.p && words[w0 - 1].c >= a) w0--; while (w1 < words.length - 1 && words[w1 + 1].p === w.p && words[w1 + 1].c < b) w1++;
   return {w0, w1, txt: txt.slice(a, b).trim()} }
-function pintaMarcas() { if (!cur) return; document.querySelectorAll('#txt w.mk').forEach(e => e.classList.remove('mk'));
-  for (const mk of LS.get('marcas.' + cur.livro.id, [])) if (mk.cap === cur.cap) for (let i = mk.w0; i <= mk.w1 && i < words.length; i++) words[i].el.classList.add('mk') }
-let lpW; $('#txt').addEventListener('pointerdown', e => { const w = e.target.closest('w'); if (!w) return; lpW = setTimeout(() => { lpW = 'ok'; menuPalavra(+w.dataset.i) }, 480) });
-['pointerup', 'pointercancel'].forEach(ev => $('#txt').addEventListener(ev, () => { if (lpW !== 'ok') clearTimeout(lpW) }));
-$('#txt').addEventListener('pointermove', e => { if (Math.abs(e.movementY) > 2 && lpW !== 'ok') clearTimeout(lpW) });
-$('#txt').addEventListener('click', e => { if (lpW === 'ok') { e.stopImmediatePropagation(); lpW = null } }, true);
-$('#txt').addEventListener('contextmenu', e => e.preventDefault());
-function marcaFrase(wi) { const f = fraseDe(wi);
-  sheet(`<h2>Destacar</h2><p style="font:17px/1.5 var(--ff);background:var(--hlbg);padding:10px 12px;border-radius:10px">${esc(f.txt)}</p>
-    <input class="inp" id="mnota" placeholder="Nota (opcional)"><button class="btn" id="msave">Salvar destaque</button>`);
-  $('#msave').onclick = () => { const id = cur.livro.id, l = LS.get('marcas.' + id, []);
-    l.push({cap: cur.cap, w0: f.w0, w1: f.w1, t: words[f.w0].t, txt: f.txt, nota: $('#mnota').value.trim(), ts: Date.now(), capt: cur.livro.capitulos[cur.cap].titulo});
-    LS.set('marcas.' + id, l); dirty(); pintaMarcas(); closeSheet(); toast('Destaque salvo') } }
-function abreMarcas(id) { const l = LS.get('marcas.' + id, []), m = metas[id] || LS.get('meta.' + id, {});
-  sheet(`<h2>Marcadores e destaques</h2>${l.length ? l.map((k, i) => `<div class="row"><button class="grow" style="text-align:left" data-j="${i}"><span style="font-family:var(--ff)">“${esc(k.txt)}”</span>${k.nota ? `<small style="color:var(--tx)">📝 ${esc(k.nota)}</small>` : ''}<small>${esc(k.capt || 'Cap. ' + (k.cap + 1))} · ${fmt(k.t)}</small></button><button data-d="${i}" style="color:var(--tx3);padding:8px">✕</button></div>`).join('')
-    + `<button class="btn" id="mexp">Exportar (copiar / compartilhar)</button>` : '<p class="note">Segure o dedo numa frase durante a leitura para destacar.</p>'}`);
-  $('#sh').querySelectorAll('[data-j]').forEach(b => b.onclick = async () => { const k = l[+b.dataset.j]; closeSheet(); if (cur?.livro.id !== id) await abreLivro(id, false); else $('#pl').classList.add('on'); await abreCap(cur.livro, k.cap, k.t, true) });
-  $('#sh').querySelectorAll('[data-d]').forEach(b => b.onclick = () => { l.splice(+b.dataset.d, 1); LS.set('marcas.' + id, l); dirty(); pintaMarcas(); abreMarcas(id) });
-  $('#mexp') && ($('#mexp').onclick = async () => { const md = `# ${m.titulo || id}\n\n` + l.map(k => `> ${k.txt}\n${k.nota ? '\n' + k.nota + '\n' : ''}\n— ${k.capt || ''}\n`).join('\n');
-    if (navigator.share) navigator.share({title: m.titulo, text: md}).catch(() => {}); else { await navigator.clipboard.writeText(md); toast('Copiado — cole no Notion') } }) }
-$('#tmk').onclick = () => abreMarcas(cur.livro.id);
-
-/* --- toque longo: palavra selecionada + ações --- */
-function menuPalavra(wi) {
-  fechaMenuPalavra(); const w = words[wi]; w.el.classList.add('sel'); navigator.vibrate?.(15);
-  const r = w.el.getBoundingClientRect(), m = document.createElement('div'); m.id = 'wmenu';
-  m.innerHTML = `<button data-a="sub"><svg viewBox="0 0 24 24"><path d="M12 17a6 6 0 0 0 6-6V3h-2.5v8a3.5 3.5 0 0 1-7 0V3H6v8a6 6 0 0 0 6 6zm-7 2v2h14v-2z"/></svg>Sublinhar</button><button data-a="pro"><svg viewBox="0 0 24 24"><path d="M9 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-2.7 0-8 1.3-8 4v2h16v-2c0-2.7-5.3-4-8-4zm7.8-9.6-1.7 1.7a3 3 0 0 1 0 3.8l1.7 1.7a5.4 5.4 0 0 0 0-7.2zM20.2 2l-1.6 1.6a8 8 0 0 1 0 10.7l1.6 1.7a10.4 10.4 0 0 0 0-14z"/></svg>Pronúncia</button>`;
-  document.body.append(m);
-  const mw = m.offsetWidth, top = r.top - 56 < 70 ? r.bottom + 10 : r.top - 56;
-  m.style.left = Math.max(8, Math.min(innerWidth - mw - 8, r.left + r.width / 2 - mw / 2)) + 'px'; m.style.top = top + 'px';
-  m.querySelector('[data-a=sub]').onclick = () => { fechaMenuPalavra(); marcaFrase(wi) };
-  m.querySelector('[data-a=pro]').onclick = () => { fechaMenuPalavra(); pronunciaPalavra(w.el.textContent.replace(/[^\p{L}\p{N}'-]/gu, '')) };
-  setTimeout(() => addEventListener('pointerdown', fechaFora, true), 50);
-}
-function fechaFora(e) { if (!e.target.closest('#wmenu')) fechaMenuPalavra() }
-function fechaMenuPalavra() { $('#wmenu')?.remove(); document.querySelectorAll('#txt w.sel').forEach(x => x.classList.remove('sel')); removeEventListener('pointerdown', fechaFora, true) }
-$('#txt').addEventListener('scroll', () => $('#wmenu') && fechaMenuPalavra(), {passive: true});
 async function pronunciaPalavra(pal) { let dic = {};
   try { const r = await raw(`dicionarios/${DEV}.json`); if (r.ok) dic = await r.json() } catch {}
   sheet(`<h2>Pronúncia</h2><p class="note" style="margin-top:-6px">Como a voz deve ler <b>${esc(pal)}</b>? Vale para os próximos livros convertidos.</p>
@@ -693,6 +664,122 @@ async function pronunciaPalavra(pal) { let dic = {};
   $('#pps').onclick = async () => { const k = $('#ppk').value.trim(), v = $('#ppv').value.trim(); if (!k || !v) return toast('Preencha os dois campos'); dic[k] = v;
     const p = `/contents/dicionarios/${DEV}.json`, r = await gh(p), sha = r.ok ? (await r.json()).sha : undefined;
     const w = await gh(p, {method: 'PUT', body: JSON.stringify({message: 'pronúncia: ' + k, content: b64txt(JSON.stringify(dic, null, 1)), sha})}); toast(w.ok ? 'Pronúncia salva ✓' : 'Erro ao salvar'); if (w.ok) closeSheet() } }
+
+/* --- marca-texto em cores --- */
+const CORES = {amarelo: '#fde68a', verde: '#bbf7d0', rosa: '#fbcfe8', laranja: '#fed7aa', azul: '#bfdbfe'};
+const rotulos = () => Object.assign({amarelo: 'Amarelo', verde: 'Verde', rosa: 'Rosa', laranja: 'Laranja', azul: 'Azul'}, LS.get('rotulos', {}));
+const marcas = id => LS.get('marcas.' + id, []).map(m => ({cor: 'amarelo', ...m}));
+function pintaMarcas() { if (!cur) return; document.querySelectorAll('#txt w[data-mk]').forEach(e => { e.removeAttribute('data-mk'); e.style.removeProperty('--mk') });
+  for (const mk of marcas(cur.livro.id)) if (mk.cap === cur.cap) for (let i = mk.w0; i <= mk.w1 && i < words.length; i++) { words[i].el.dataset.mk = 1; words[i].el.style.setProperty('--mk', CORES[mk.cor] || CORES.amarelo) } }
+function salvaMarca(w0, w1, cor, nota = '') { const id = cur.livro.id, l = LS.get('marcas.' + id, []);
+  const txt = trecho(w0, w1); l.push({cap: cur.cap, w0, w1, t: words[w0].t, txt, nota, cor, ts: Date.now(), capt: cur.livro.capitulos[cur.cap].titulo});
+  LS.set('marcas.' + id, l); dirty(); pintaMarcas(); toast('Marcado em ' + rotulos()[cor].toLowerCase()) }
+function trecho(w0, w1) { const a = words[w0], b = words[w1]; if (a.p === b.p) { const t = paras[a.p].el.textContent; return t.slice(a.c, b.c + b.el.textContent.length).trim() }
+  let s = ''; for (let i = w0; i <= w1; i++) s += words[i].el.textContent + (i < w1 && words[i + 1].p !== words[i].p ? '\n' : ' '); return s.replace(/ +\n/g, '\n').trim() }
+function marcaFrase(wi) { const f = fraseDe(wi); menuSelecao(f.w0, f.w1) }
+function abreMarcas(id, filtro = '') { const l = marcas(id), m = metas[id] || LS.get('meta.' + id, {}), rot = rotulos(), vis = l.map((k, i) => [k, i]).filter(([k]) => !filtro || k.cor === filtro);
+  sheet(`<h2>Destaques</h2><div class="pills" style="margin-bottom:10px"><button data-f="" class="${!filtro ? 'sel' : ''}">Todos (${l.length})</button>${Object.keys(CORES).map(c => `<button data-f="${c}" class="${filtro === c ? 'sel' : ''}"><span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${CORES[c]};margin-right:6px;vertical-align:-1px"></span>${esc(rot[c])} (${l.filter(k => k.cor === c).length})</button>`).join('')}</div>
+    <button class="note" id="rot" style="text-decoration:underline">Dar nome às cores (ex.: amarelo = importante)</button>
+    ${vis.length ? vis.map(([k, i]) => `<div class="row" style="border-left:4px solid ${CORES[k.cor]};padding-left:10px"><button class="grow" style="text-align:left" data-j="${i}"><span style="font-family:var(--ff)">“${esc(k.txt)}”</span>${k.nota ? `<small style="color:var(--tx)">📝 ${esc(k.nota)}</small>` : ''}<small>${esc(k.capt || 'Cap. ' + (k.cap + 1))} · ${fmt(k.t)}</small></button><button data-d="${i}" style="color:var(--tx3);padding:8px">✕</button></div>`).join('')
+      + `<button class="btn" id="mexp">Exportar ${filtro ? esc(rot[filtro].toLowerCase()) : 'todos'} (copiar / compartilhar)</button>` : '<p class="note">Segure o dedo numa palavra e arraste para selecionar um trecho.</p>'}`);
+  $('#sh').querySelectorAll('[data-f]').forEach(b => b.onclick = () => abreMarcas(id, b.dataset.f));
+  $('#rot').onclick = () => { sheet(`<h2>Nome das cores</h2>${Object.keys(CORES).map(c => `<div style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><span style="width:26px;height:26px;border-radius:50%;background:${CORES[c]};flex:none"></span><input class="inp" data-r="${c}" value="${esc(rot[c])}"></div>`).join('')}<button class="btn" id="rs">Salvar</button>`);
+    $('#rs').onclick = () => { const r = {}; $('#sh').querySelectorAll('[data-r]').forEach(x => r[x.dataset.r] = x.value.trim() || x.dataset.r); LS.set('rotulos', r); dirty(); abreMarcas(id, filtro) } };
+  $('#sh').querySelectorAll('[data-j]').forEach(b => b.onclick = async () => { const k = l[+b.dataset.j]; closeSheet(); if (cur?.livro.id !== id) await abreLivro(id, false); else $('#pl').classList.add('on'); await abreCap(cur.livro, k.cap, k.t, true) });
+  $('#sh').querySelectorAll('[data-d]').forEach(b => b.onclick = () => { const raw0 = LS.get('marcas.' + id, []); raw0.splice(+b.dataset.d, 1); LS.set('marcas.' + id, raw0); dirty(); pintaMarcas(); abreMarcas(id, filtro) });
+  $('#mexp') && ($('#mexp').onclick = async () => { const md = `# ${m.titulo || id}${filtro ? ' — ' + rot[filtro] : ''}\n\n` + vis.map(([k]) => `> ${k.txt}\n${k.nota ? '\n' + k.nota + '\n' : ''}\n— ${k.capt || ''} · ${rot[k.cor]}\n`).join('\n');
+    if (navigator.share) navigator.share({title: m.titulo, text: md}).catch(() => {}); else { await navigator.clipboard.writeText(md); toast('Copiado — cole no Notion') } }) }
+$('#tmk').onclick = () => abreMarcas(cur.livro.id);
+
+/* --- seleção: segurar e arrastar --- */
+let selA = null, selB = null, selando = false, lpT2 = null, lpXY = null;
+const wordAt = (x, y) => { const el = document.elementFromPoint(x, y)?.closest?.('#txt w'); return el ? +el.dataset.i : null };
+function pintaSel() { document.querySelectorAll('#txt w.sel').forEach(x => x.classList.remove('sel')); if (selA == null) return; const [a, b] = [Math.min(selA, selB), Math.max(selA, selB)]; for (let i = a; i <= b; i++) words[i].el.classList.add('sel') }
+$('#txt').addEventListener('pointerdown', e => { const wi = wordAt(e.clientX, e.clientY); if (wi == null) return; lpXY = [e.clientX, e.clientY];
+  lpT2 = setTimeout(() => { lpT2 = null; fechaMenuPalavra(); selando = true; selA = selB = wi; pintaSel(); navigator.vibrate?.(15) }, 450) });
+$('#txt').addEventListener('touchmove', e => { if (selando) { e.preventDefault(); const t = e.touches[0], wi = wordAt(t.clientX, t.clientY); if (wi != null && wi !== selB) { selB = wi; pintaSel() } } }, {passive: false});
+$('#txt').addEventListener('pointermove', e => { if (lpT2 && lpXY && Math.hypot(e.clientX - lpXY[0], e.clientY - lpXY[1]) > 8) { clearTimeout(lpT2); lpT2 = null }
+  if (selando && e.pointerType === 'mouse') { const wi = wordAt(e.clientX, e.clientY); if (wi != null && wi !== selB) { selB = wi; pintaSel() } } });
+addEventListener('pointerup', () => { clearTimeout(lpT2); lpT2 = null; if (!selando) return; selando = false; selFim = Date.now(); menuSelecao(Math.min(selA, selB), Math.max(selA, selB)) });
+let selFim = 0; $('#txt').addEventListener('click', e => { if (Date.now() - selFim < 400 || $('#wmenu')) { e.stopImmediatePropagation(); e.preventDefault() } }, true);
+$('#txt').addEventListener('contextmenu', e => e.preventDefault());
+
+function menuSelecao(a, b) {
+  $('#wmenu')?.remove(); selA = a; selB = b; pintaSel();
+  const txt = trecho(a, b), umaPalavra = a === b, ra = words[a].el.getBoundingClientRect(), rb = words[b].el.getBoundingClientRect(), m = document.createElement('div'); m.id = 'wmenu';
+  const ic = (d, l, k) => `<button data-a="${k}"><svg viewBox="0 0 24 24"><path d="${d}"/></svg>${l}</button>`;
+  m.innerHTML = `<div class="wcores">${Object.keys(CORES).map(c => `<button data-c="${c}" style="background:${CORES[c]}" aria-label="${c}"></button>`).join('')}<button data-a="nota" class="wnota">+ nota</button></div><div class="wacoes">
+    ${ic('M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 17h-2v-2h2zm2.1-7.8-.9.9A3.4 3.4 0 0 0 13 15h-2v-.5a4 4 0 0 1 1.2-2.8l1.2-1.3A2 2 0 1 0 10 9H8a4 4 0 1 1 7.1 2.2z', 'Dicionário', 'dic')}
+    ${ic('M12.9 15.1 10.3 12.6l.1-.1A17.5 17.5 0 0 0 14 6h3V4h-7V2H8v2H1v2h11.2A15.7 15.7 0 0 1 9 11.4 15.6 15.6 0 0 1 6.7 8H4.7a17.5 17.5 0 0 0 3 4.6l-5.1 5L4 19l5-5 3.1 3.1zM18.5 10h-2L12 22h2l1.1-3h4.8l1.1 3h2zm-2.6 7 1.6-4.3 1.6 4.3z', 'Traduzir', 'tra')}
+    ${ic('M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm6.9 6h-3a15.6 15.6 0 0 0-1.3-3.6A8 8 0 0 1 18.9 8zM12 4a14 14 0 0 1 1.9 4h-3.8A14 14 0 0 1 12 4zM4.3 14a8.2 8.2 0 0 1 0-4h3.4a16.5 16.5 0 0 0 0 4zm.8 2h3a15.6 15.6 0 0 0 1.3 3.6A8 8 0 0 1 5.1 16zm3-8h-3a8 8 0 0 1 4.3-3.6A15.6 15.6 0 0 0 8.1 8zM12 20a14 14 0 0 1-1.9-4h3.8A14 14 0 0 1 12 20zm2.3-6H9.7a14.7 14.7 0 0 1 0-4h4.6a14.7 14.7 0 0 1 0 4z', 'Wikipédia', 'wiki')}
+    ${umaPalavra ? ic('M9 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-2.7 0-8 1.3-8 4v2h16v-2c0-2.7-5.3-4-8-4zm7.8-9.6-1.7 1.7a3 3 0 0 1 0 3.8l1.7 1.7a5.4 5.4 0 0 0 0-7.2z', 'Pronúncia', 'pro') : ''}
+    ${ic('M8 5v14l11-7z', 'Ouvir daqui', 'play')}
+    ${ic('M16 1H4a2 2 0 0 0-2 2v14h2V3h12zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11z', 'Copiar', 'cp')}
+    ${ic('M18 16a3 3 0 0 0-2 .8L8.9 12.7a3 3 0 0 0 0-1.4L16 7.2A3 3 0 1 0 15 5l-7 4.1a3 3 0 1 0 0 4.8l7.1 4.2A3 3 0 1 0 18 16z', 'Enviar', 'sh')}</div>`;
+  document.body.append(m);
+  const mw = m.offsetWidth, mh = m.offsetHeight, top = ra.top - mh - 10 < 70 ? rb.bottom + 10 : ra.top - mh - 10;
+  m.style.left = Math.max(8, Math.min(innerWidth - mw - 8, (ra.left + rb.right) / 2 - mw / 2)) + 'px'; m.style.top = Math.min(innerHeight - mh - 8, top) + 'px';
+  m.querySelectorAll('[data-c]').forEach(x => x.onclick = () => { fechaMenuPalavra(); salvaMarca(a, b, x.dataset.c) });
+  const acao = {
+    nota: () => { sheet(`<h2>Nota</h2><p style="font:17px/1.5 var(--ff);background:var(--hlbg);padding:10px 12px;border-radius:10px">${esc(txt)}</p><textarea class="inp" id="mnota" rows="3" placeholder="Sua nota"></textarea>
+      <div class="pills" style="margin-top:10px">${Object.keys(CORES).map((c, i) => `<button data-k="${c}" class="${i ? '' : 'sel'}" style="background:${CORES[c]};color:#222">${esc(rotulos()[c])}</button>`).join('')}</div><button class="btn" id="msave">Salvar</button>`);
+      let cor = 'amarelo'; $('#sh').querySelectorAll('[data-k]').forEach(x => x.onclick = () => { cor = x.dataset.k; $('#sh').querySelectorAll('[data-k]').forEach(y => y.classList.toggle('sel', y === x)) });
+      $('#msave').onclick = () => { salvaMarca(a, b, cor, $('#mnota').value.trim()); closeSheet() } },
+    dic: () => dicionario(txt), tra: () => traduz(txt), wiki: () => wikipedia(txt),
+    pro: () => pronunciaPalavra(txt.replace(/[^\p{L}\p{N}'-]/gu, '')),
+    play: () => { au.currentTime = words[a].t + .01; autoScroll = true; $('#back2').classList.add('hide'); au.play(); sync(true) },
+    cp: async () => { try { await navigator.clipboard.writeText(txt); toast('Copiado') } catch { prompt('Copie:', txt) } },
+    sh: () => navigator.share ? navigator.share({text: `“${txt}”\n— ${cur.livro.titulo}`}).catch(() => {}) : acao.cp() };
+  m.querySelectorAll('[data-a]').forEach(x => x.onclick = () => { fechaMenuPalavra(); acao[x.dataset.a]() });
+  setTimeout(() => addEventListener('pointerdown', fechaFora, true), 50);
+}
+function menuPalavra(wi) { menuSelecao(wi, wi) }
+function fechaFora(e) { if (!e.target.closest('#wmenu')) fechaMenuPalavra() }
+function fechaMenuPalavra() { $('#wmenu')?.remove(); selA = selB = null; pintaSel(); removeEventListener('pointerdown', fechaFora, true) }
+$('#txt').addEventListener('scroll', () => { if ($('#wmenu')) fechaMenuPalavra() }, {passive: true});
+
+/* --- dicionário, tradução, Wikipédia (grátis, sem IA) --- */
+const idiomaLivro = () => cur?.livro?.idioma || 'pt';
+function salvaVocab(pal, def) { const v = LS.get('vocab', []); if (!v.some(x => x.p.toLowerCase() === pal.toLowerCase())) { v.unshift({p: pal, d: (def || '').slice(0, 300), ctx: '', livro: cur?.livro.titulo, ts: Date.now()}); LS.set('vocab', v.slice(0, 500)); dirty() } }
+async function dicionario(txt) {
+  const pal = txt.trim().split(/\s+/).length > 3 ? txt.trim() : txt.replace(/[^\p{L}\p{N}' -]/gu, '').trim(), lang = idiomaLivro();
+  sheet(`<h2>${esc(pal)}</h2><div id="dres"><p class="note"><span class="spin"></span> Buscando…</p></div>`);
+  let html = '', resumo = '';
+  try {
+    if (lang === 'en') { const r = await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(pal.toLowerCase())); const j = await r.json();
+      if (Array.isArray(j)) { const e = j[0]; html = (e.phonetic ? `<p class="note">${esc(e.phonetic)}</p>` : '') + e.meanings.slice(0, 4).map(mn => `<p><i style="color:var(--tx2)">${esc(mn.partOfSpeech)}</i><br>${mn.definitions.slice(0, 3).map((d, i) => `${i + 1}. ${esc(d.definition)}${d.example ? `<br><small style="color:var(--tx2)">“${esc(d.example)}”</small>` : ''}`).join('<br>')}</p>`).join('');
+        resumo = e.meanings[0]?.definitions[0]?.definition || ''; const au2 = e.phonetics?.find(p => p.audio)?.audio; if (au2) html = `<button class="btn2" onclick="new Audio('${au2}').play()">🔊 Pronúncia</button>` + html } }
+    else { const r = await fetch(`https://pt.wiktionary.org/w/api.php?action=query&prop=extracts&explaintext=1&redirects=1&format=json&origin=*&titles=${encodeURIComponent(pal.toLowerCase())}`); const j = await r.json();
+      const pg = Object.values(j.query.pages)[0]; let t = pg.extract || ''; const i = t.indexOf('Português'); if (i >= 0) t = t.slice(i + 9);
+      t = t.split(/\n=+ ?(Tradução|Traduções|Etimologia|Ver também|Sinônimos)/)[0].replace(/^=+.*$/gm, '').replace(/\n{2,}/g, '\n').trim().slice(0, 1400);
+      if (t) { html = `<div style="white-space:pre-line;font-size:15px">${esc(t)}</div>`; resumo = t.split('\n').find(x => x.length > 15) || '' } }
+  } catch {}
+  $('#dres').innerHTML = (html || '<p class="note">Não encontrei no dicionário.</p>') +
+    `<button class="btn" id="dvoc">⭐ Salvar no meu vocabulário</button><a class="btn2" style="display:block;text-align:center;text-decoration:none;color:inherit" target="_blank" href="${lang === 'en' ? 'https://www.google.com/search?q=define+' : 'https://www.dicio.com.br/pesquisa.php?q='}${encodeURIComponent(pal)}">Abrir no ${lang === 'en' ? 'Google' : 'Dicio'}</a>`;
+  $('#dvoc').onclick = () => { salvaVocab(pal, resumo); toast('Salvo no vocabulário ⭐') };
+}
+async function traduz(txt) { const de = idiomaLivro() === 'pt' ? 'pt-BR' : idiomaLivro(), para = de === 'pt-BR' ? 'en' : 'pt-BR';
+  sheet(`<h2>Tradução</h2><p style="font:16px/1.5 var(--ff);color:var(--tx2)">${esc(txt)}</p><div id="tres"><p class="note"><span class="spin"></span> Traduzindo…</p></div>`);
+  let out = '';
+  try { const r = await fetch(`https://api.mymemory.translated.net/get?langpair=${de}|${para}&q=${encodeURIComponent(txt.slice(0, 480))}`); const j = await r.json(); out = j.responseData?.translatedText || '' } catch {}
+  $('#tres').innerHTML = `<p style="font:19px/1.5 var(--ff);background:var(--hlbg);padding:12px;border-radius:12px">${esc(out || 'Não consegui traduzir agora.')}</p>
+    ${txt.split(/\s+/).length <= 3 ? '<button class="btn" id="tvoc">⭐ Salvar no meu vocabulário</button>' : ''}
+    <a class="btn2" style="display:block;text-align:center;text-decoration:none;color:inherit" target="_blank" href="https://translate.google.com/?sl=auto&tl=${para.slice(0, 2)}&text=${encodeURIComponent(txt)}">Abrir no Google Tradutor</a>`;
+  $('#tvoc') && ($('#tvoc').onclick = () => { salvaVocab(txt.replace(/[^\p{L}\p{N}' -]/gu, ''), out); toast('Salvo no vocabulário ⭐') }) }
+async function wikipedia(txt) { const lang = idiomaLivro() === 'en' ? 'en' : 'pt', q = txt.replace(/[^\p{L}\p{N}' -]/gu, '').trim();
+  sheet(`<h2>${esc(q)}</h2><div id="wres"><p class="note"><span class="spin"></span> Buscando…</p></div>`);
+  try { const s = await (await fetch(`https://${lang}.wikipedia.org/w/api.php?action=opensearch&limit=1&format=json&origin=*&search=${encodeURIComponent(q)}`)).json(), t = s[1]?.[0];
+    if (!t) throw 0; const j = await (await fetch(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(t)}`)).json();
+    $('#wres').innerHTML = `${j.thumbnail ? `<img src="${j.thumbnail.source}" style="max-width:100%;max-height:200px;border-radius:12px;display:block;margin-bottom:10px">` : ''}<b>${esc(j.title)}</b><p style="font-size:15px;line-height:1.55">${esc(j.extract)}</p><a class="btn2" style="display:block;text-align:center;text-decoration:none;color:inherit" target="_blank" href="${j.content_urls?.mobile?.page}">Ler na Wikipédia</a>` }
+  catch { $('#wres').innerHTML = '<p class="note">Nada encontrado na Wikipédia.</p>' } }
+function abreVocab() { const v = LS.get('vocab', []);
+  sheet(`<h2>Meu vocabulário ⭐</h2>${v.length ? `<button class="btn2" id="vrev">Revisar (cartões)</button>` + v.map((x, i) => `<div class="row"><div class="grow"><b>${esc(x.p)}</b><small>${esc(x.d || '')}</small><small style="color:var(--tx3)">${esc(x.livro || '')}</small></div><button data-d="${i}" style="color:var(--tx3);padding:8px">✕</button></div>`).join('') : '<p class="note">Palavras que você salvar pelo dicionário ou tradutor aparecem aqui.</p>'}`);
+  $('#sh').querySelectorAll('[data-d]').forEach(b => b.onclick = () => { v.splice(+b.dataset.d, 1); LS.set('vocab', v); dirty(); abreVocab() });
+  $('#vrev') && ($('#vrev').onclick = () => { let i = 0; const cards = [...v].sort(() => Math.random() - .5);
+    const mostra = (virado) => { const c = cards[i]; sheet(`<h2>Revisão ${i + 1}/${cards.length}</h2><div style="background:var(--bg3);border-radius:18px;padding:30px 18px;text-align:center;min-height:180px;display:grid;place-items:center"><div><div style="font:600 26px var(--ff)">${esc(c.p)}</div>${virado ? `<p style="font-size:16px;margin-top:14px">${esc(c.d || '—')}</p>` : ''}</div></div>
+      ${virado ? `<div style="display:flex;gap:10px"><button class="btn2" id="vn">Não sabia</button><button class="btn" id="vs" style="margin-top:10px">Sabia ✓</button></div>` : '<button class="btn" id="vv">Mostrar significado</button>'}`);
+      if (!virado) $('#vv').onclick = () => mostra(true); else { const prox = () => { i++; i < cards.length ? mostra(false) : (closeSheet(), toast('Revisão concluída 🎉')) }; $('#vs').onclick = prox; $('#vn').onclick = () => { cards.push(cards[i]); prox() } } };
+    mostra(false) }) }
 
 /* --- tela sempre ligada no player --- */
 let wakeLock = null;
@@ -777,6 +864,33 @@ async function verificaCompartilhado() {
     await c.delete('/share-meta'); await c.delete('/share-file');
     const url = (meta.url || (meta.text || '').match(/https?:\/\/\S+/)?.[0] || '').trim();
     abreAdicionar(arq ? {arq} : url ? {url} : {texto: meta.text, titulo: meta.title}) } catch {} }
+
+/* --- conforto visual --- */
+Object.assign(PREFS, Object.assign({lh: 1.7, filtro: 0, brilho: 0, fonte: 'serif', marg: 22}, LS.get('prefs', {})));
+const _applyPrefs = applyPrefs;
+applyPrefs = () => { _applyPrefs(); const r = document.documentElement.style;
+  r.setProperty('--lh', PREFS.lh); r.setProperty('--ff', PREFS.fonte === 'sans' ? "Inter,system-ui,sans-serif" : "'Literata',Georgia,serif"); r.setProperty('--marg', PREFS.marg + 'px');
+  let f = $('#filtro'); if (!f) { f = document.createElement('div'); f.id = 'filtro'; document.body.append(f) }
+  f.style.background = `rgba(255,140,30,${PREFS.filtro / 100 * .45})`; f.style.boxShadow = `inset 0 0 0 100vmax rgba(0,0,0,${PREFS.brilho / 100 * .7})` };
+const TEMAS = [['dark', 'Escuro', '#0d0d0f', '#f4f4f5'], ['noite', 'Noite âmbar', '#14100c', '#e8c99a'], ['light', 'Claro', '#fafaf9', '#18181b'], ['sepia', 'Sépia', '#f4ecd8', '#3b2f20'], ['verde', 'Verde suave', '#e4ecdc', '#26331f'], ['cinza', 'Papel cinza', '#e7e5e1', '#2b2b2b']];
+function abreTexto() {
+  const sl = (id, l, min, max, step, v, suf = '') => `<span class="lab">${l} <b id="${id}v">${v}${suf}</b></span><input type="range" class="fsr" id="${id}" min="${min}" max="${max}" step="${step}" value="${v}">`;
+  sheet(`<h2>Texto e conforto visual</h2>
+    <span class="lab">Tema</span><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${TEMAS.map(([k, n, bg, tx]) => `<button data-t="${k}" style="background:${bg};color:${tx};border-radius:12px;padding:12px 6px;font:600 13px var(--ff);border:2px solid ${PREFS.theme === k ? 'var(--hl)' : 'transparent'}">Aa<br><small style="font:500 11px Inter">${n}</small></button>`).join('')}</div>
+    ${sl('fsr', 'Tamanho da letra', 15, 32, 1, PREFS.fs, 'px')}${sl('lhr', 'Espaço entre linhas', 1.3, 2.2, .1, PREFS.lh)}${sl('mgr', 'Margens', 10, 48, 2, PREFS.marg, 'px')}
+    <span class="lab">Fonte</span><div class="pills"><button data-f="serif" class="${PREFS.fonte === 'serif' ? 'sel' : ''}" style="font-family:Literata,serif">Literata</button><button data-f="sans" class="${PREFS.fonte === 'sans' ? 'sel' : ''}">Inter</button></div>
+    ${sl('flr', '🌙 Filtro de luz azul', 0, 100, 5, PREFS.filtro, '%')}${sl('brr', '🔅 Escurecer tela (além do mínimo do celular)', 0, 100, 5, PREFS.brilho, '%')}
+    <p class="note">À noite, use <b>Noite âmbar</b> com o filtro em 40–60%: menos luz azul e menos brilho, cansa menos a vista e atrapalha menos o sono.</p>`);
+  const liga = (id, k, f = Number) => $('#' + id).oninput = e => { PREFS[k] = f(e.target.value); $('#' + id + 'v').textContent = e.target.value + ({fsr: 'px', mgr: 'px', flr: '%', brr: '%'}[id] || ''); savePrefs(); applyPrefs() };
+  liga('fsr', 'fs'); liga('lhr', 'lh'); liga('mgr', 'marg'); liga('flr', 'filtro'); liga('brr', 'brilho');
+  $('#sh').querySelectorAll('[data-t]').forEach(b => b.onclick = () => { PREFS.theme = b.dataset.t; savePrefs(); applyPrefs(); $('#sh').querySelectorAll('[data-t]').forEach(x => x.style.borderColor = x === b ? 'var(--hl)' : 'transparent') });
+  $('#sh').querySelectorAll('[data-f]').forEach(b => b.onclick = () => { PREFS.fonte = b.dataset.f; savePrefs(); applyPrefs(); $('#sh').querySelectorAll('[data-f]').forEach(x => x.classList.toggle('sel', x === b)) });
+}
+$('#taa').onclick = abreTexto;
+const _bset2 = $('#bset').onclick;
+$('#bset').onclick = async () => { await _bset2(); $('#a-pr').insertAdjacentHTML('beforebegin', `<button class="row" id="a-vo"><div class="grow">⭐ Meu vocabulário<small>Palavras salvas do dicionário e tradutor, com revisão em cartões</small></div></button><button class="row" id="a-tx"><div class="grow">👁️ Texto e conforto visual</div></button>`);
+  $('#a-vo').onclick = abreVocab; $('#a-tx').onclick = abreTexto };
+applyPrefs();
 
 /* ---------- início ---------- */
 async function inicia() {
