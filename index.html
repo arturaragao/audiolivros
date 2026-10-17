@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d0d0f">
+<title>Ouvir</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Literata:opsz,wght@7..72,400;7..72,600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d0d0f;--bg2:#17171a;--bg3:#222226;--tx:#f4f4f5;--tx2:#a1a1aa;--tx3:#6b6b75;--ac:#fff;--hl:#3b82f6;--hlbg:rgba(59,130,246,.22);--pbg:rgba(255,255,255,.04);--rd:16px;--fs:20px;--ff:'Literata',Georgia,serif}
+:root[data-theme=light]{--bg:#fafaf9;--bg2:#fff;--bg3:#ececea;--tx:#18181b;--tx2:#52525b;--tx3:#a1a1aa;--ac:#000;--hl:#2563eb;--hlbg:rgba(37,99,235,.16);--pbg:rgba(0,0,0,.03)}
+:root[data-theme=sepia]{--bg:#f4ecd8;--bg2:#fbf5e6;--bg3:#e8dcc0;--tx:#3b2f20;--tx2:#6b5a43;--tx3:#a08e72;--ac:#3b2f20;--hl:#b45309;--hlbg:rgba(180,83,9,.18);--pbg:rgba(0,0,0,.03)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 Inter,system-ui,sans-serif;overscroll-behavior:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+input,select{font:inherit;color:inherit}
+.hide{display:none!important}
+svg{width:24px;height:24px;fill:currentColor;flex:none}
+/* ---------- biblioteca ---------- */
+#lib{padding:calc(env(safe-area-inset-top) + 20px) 16px 140px;max-width:900px;margin:auto}
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.top h1{font-size:28px;margin:0;font-weight:700;letter-spacing:-.02em}
+.ibtn{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--bg2)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:18px 14px}
+.card{position:relative;text-align:left}
+.cov{aspect-ratio:2/3;border-radius:10px;overflow:hidden;background:var(--bg3);position:relative;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.cov img{width:100%;height:100%;object-fit:cover;display:block}
+.gen{position:absolute;inset:0;display:flex;align-items:flex-end;padding:12px;font:600 15px/1.2 var(--ff);color:#fff}
+.bar{height:3px;background:rgba(255,255,255,.18);position:absolute;left:0;right:0;bottom:0}
+.bar i{display:block;height:100%;background:#fff}
+.card h3{font-size:14px;font-weight:600;margin:8px 0 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card p{margin:2px 0 0;font-size:12px;color:var(--tx2)}
+.chip{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.72);color:#fff;font-size:11px;font-weight:600;padding:3px 8px;border-radius:99px;backdrop-filter:blur(6px)}
+.chip.err{background:#b91c1c}
+.dot{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.6);display:grid;place-items:center}
+.dot svg{width:14px;height:14px;fill:#fff}
+.empty{text-align:center;color:var(--tx2);padding:60px 20px}
+.empty b{display:block;color:var(--tx);font-size:18px;margin-bottom:6px}
+.fab{position:fixed;right:18px;bottom:calc(env(safe-area-inset-bottom) + 92px);height:52px;padding:0 20px 0 16px;border-radius:99px;background:var(--ac);color:var(--bg);display:flex;align-items:center;gap:6px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.35);z-index:5}
+.fab svg{fill:var(--bg)}
+/* mini player */
+#mini{position:fixed;left:10px;right:10px;bottom:calc(env(safe-area-inset-bottom) + 12px);background:var(--bg2);border-radius:14px;display:flex;align-items:center;gap:12px;padding:8px 10px;box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:6;max-width:880px;margin:auto}
+#mini .mc{width:40px;height:40px;border-radius:6px;overflow:hidden;background:var(--bg3);flex:none}
+#mini .mc img{width:100%;height:100%;object-fit:cover}
+#mini .mt{flex:1;min-width:0}
+#mini .mt b,#mini .mt span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mini .mt span{font-size:12px;color:var(--tx2)}
+#mini .mbar{position:absolute;left:12px;right:12px;bottom:0;height:2px;background:var(--bg3);border-radius:2px;overflow:hidden}
+#mini .mbar i{display:block;height:100%;background:var(--tx)}
+/* ---------- player ---------- */
+#pl{position:fixed;inset:0;background:var(--bg);z-index:10;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .32s cubic-bezier(.2,.8,.2,1)}
+#pl.on{transform:none}
+.ph{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 8px) 10px 8px}
+.ph .tt{flex:1;min-width:0;text-align:center}
+.ph .tt b,.ph .tt span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ph .tt span{font-size:12px;color:var(--tx2)}
+#txt{flex:1;overflow-y:auto;padding:12px 22px 40vh;font:var(--fs)/1.7 var(--ff);max-width:720px;width:100%;margin:auto;scroll-behavior:auto}
+#txt p{margin:0 0 1em;padding:2px 6px;margin-left:-6px;margin-right:-6px;border-radius:8px;transition:background .3s}
+#txt p.cur{background:var(--pbg)}
+#txt p.h{font-weight:600;font-size:1.15em;margin-bottom:1.2em}
+#txt w{border-radius:4px;transition:background .12s,color .12s;cursor:pointer}
+#txt w.on{background:var(--hlbg);color:var(--hl);box-shadow:0 0 0 2px var(--hlbg)}
+#txt .load{color:var(--tx2);font:15px Inter,sans-serif;text-align:center;padding-top:30vh}
+#back2{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 190px);background:var(--ac);color:var(--bg);font-weight:600;font-size:13px;padding:9px 16px;border-radius:99px;box-shadow:0 6px 20px rgba(0,0,0,.35);display:flex;gap:6px;align-items:center}
+#back2 svg{width:16px;height:16px;fill:var(--bg)}
+.pc{padding:10px 18px calc(env(safe-area-inset-bottom) + 14px);background:linear-gradient(transparent,var(--bg) 18px);max-width:720px;width:100%;margin:auto}
+.seek{position:relative;height:22px;display:flex;align-items:center}
+.seek input{width:100%;margin:0;-webkit-appearance:none;appearance:none;height:4px;border-radius:4px;background:linear-gradient(var(--tx),var(--tx)) 0/var(--p,0%) 100% no-repeat,var(--bg3)}
+.seek input::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--tx)}
+.tm{display:flex;justify-content:space-between;font-size:12px;color:var(--tx2);font-variant-numeric:tabular-nums;margin-top:2px}
+.ctl{display:flex;align-items:center;justify-content:space-between;margin:10px 0 12px}
+.ctl .sm{width:44px;height:44px;display:grid;place-items:center;border-radius:50%}
+.ctl .sm svg{width:28px;height:28px}
+.ctl .pp{width:70px;height:70px;border-radius:50%;background:var(--ac);color:var(--bg);display:grid;place-items:center}
+.ctl .pp svg{width:34px;height:34px;fill:var(--bg)}
+.tools{display:flex;justify-content:space-around}
+.tools button{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--tx2);min-width:60px}
+.tools button svg{width:22px;height:22px;fill:var(--tx)}
+.tools b{color:var(--tx);font-size:14px;height:22px;line-height:22px}
+.tools .act b,.tools .act svg{color:var(--hl);fill:var(--hl)}
+/* ---------- folhas ---------- */
+#veil{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:20;opacity:0;pointer-events:none;transition:opacity .25s}
+#veil.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-height:85vh;overflow-y:auto;background:var(--bg2);border-radius:20px 20px 0 0;z-index:21;padding:8px 18px calc(env(safe-area-inset-bottom) + 18px);transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.8,.2,1);max-width:720px;margin:auto}
+.sheet.on{transform:none}
+.sheet:before{content:"";display:block;width:38px;height:4px;border-radius:4px;background:var(--bg3);margin:0 auto 12px}
+.sheet h2{font-size:18px;margin:4px 0 14px}
+.row{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--bg3);width:100%;text-align:left}
+.row:last-child{border:0}
+.row .grow{flex:1;min-width:0}
+.row small{display:block;color:var(--tx2);font-size:12px}
+.row.sel{color:var(--hl)}
+.row.sel small{color:var(--hl);opacity:.8}
+.pills{display:flex;flex-wrap:wrap;gap:8px}
+.pills button{padding:9px 14px;border-radius:99px;background:var(--bg3);font-weight:600;font-size:14px}
+.pills button.sel{background:var(--ac);color:var(--bg)}
+.vgrp{font-size:12px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em;margin:16px 0 4px}
+.vo{display:flex;align-items:center;gap:12px;padding:10px;border-radius:12px;width:100%;text-align:left;border:2px solid transparent}
+.vo.sel{border-color:var(--hl);background:var(--hlbg)}
+.vo .av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#fff;flex:none}
+.vo .pv{width:36px;height:36px;border-radius:50%;background:var(--bg3);display:grid;place-items:center}
+.vo .pv svg{width:18px;height:18px}
+.btn{display:block;width:100%;padding:15px;border-radius:14px;background:var(--ac);color:var(--bg);font-weight:600;font-size:16px;margin-top:16px}
+.btn:disabled{opacity:.4}
+.btn2{display:block;width:100%;padding:13px;border-radius:14px;background:var(--bg3);font-weight:600;margin-top:10px}
+.file{display:flex;align-items:center;gap:12px;padding:16px;border:2px dashed var(--bg3);border-radius:14px;width:100%;text-align:left}
+.file svg{width:32px;height:32px;fill:var(--tx2)}
+.lab{font-size:13px;color:var(--tx2);margin:14px 0 6px;display:block}
+.inp{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--bg3);background:var(--bg);font-size:15px}
+.note{font-size:13px;color:var(--tx2);margin-top:8px}
+#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 100px);transform:translate(-50%,20px);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;font-weight:500;opacity:0;transition:.25s;z-index:40;max-width:90vw;text-align:center;pointer-events:none}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+input[type=range].fsr{width:100%}
+/* setup */
+#setup{max-width:520px;margin:auto;padding:calc(env(safe-area-inset-top) + 40px) 22px 40px}
+#setup h1{font-size:30px;margin:0 0 6px}
+#setup ol{padding-left:20px;color:var(--tx2);font-size:14px}
+#setup ol li{margin-bottom:6px}
+#setup a{color:var(--hl)}
+.spin{width:18px;height:18px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp 0.8s linear infinite;display:inline-block;vertical-align:-3px}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<svg style="display:none">
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.14v13.72a1 1 0 0 0 1.52.85l10.29-6.86a1 1 0 0 0 0-1.7L9.52 4.29A1 1 0 0 0 8 5.14z"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></symbol>
+<symbol id="i-b15" viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/><text x="12" y="16.3" font-size="7" font-weight="700" text-anchor="middle" font-family="Inter,sans-serif">15</text></symbol>
+<symbol id="i-f15" viewBox="0 0 24 24"><path d="M12 5V2l5 4-5 4V7a6 6 0 1 0 6 6h2a8 8 0 1 1-8-8z"/><text x="12" y="16.3" font-size="7" font-weight="700" text-anchor="middle" font-family="Inter,sans-serif">15</text></symbol>
+<symbol id="i-prev" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></symbol>
+<symbol id="i-next" viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></symbol>
+<symbol id="i-down" viewBox="0 0 24 24"><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></symbol>
+<symbol id="i-list" viewBox="0 0 24 24"><path d="M3 13h2v-2H3zm0 4h2v-2H3zm0-8h2V7H3zm4 4h14v-2H7zm0 4h14v-2H7zM7 7v2h14V7z"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M12.3 2a10 10 0 1 0 9.7 12.4A8 8 0 0 1 12.3 2z"/></symbol>
+<symbol id="i-aa" viewBox="0 0 24 24"><path d="M9.6 14H4.4l-1 3H1.5L6.1 4h1.8l4.6 13h-1.9zM5 12.3h4L7 6.6zM17.6 17l-.2-.9a3.2 3.2 0 0 1-2.6 1.1c-1.7 0-2.8-1-2.8-2.5 0-1.7 1.4-2.6 3.7-2.6h1.5v-.4c0-.9-.6-1.5-1.7-1.5-.9 0-1.6.4-1.9 1l-1.4-.7a3.8 3.8 0 0 1 3.4-1.8c2 0 3.3 1.1 3.3 3v5.3zm-.4-3.4h-1.3c-1.4 0-2.1.4-2.1 1.2 0 .7.6 1.1 1.4 1.1 1.2 0 2-.7 2-1.8z"/></symbol>
+<symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></symbol>
+<symbol id="i-dl" viewBox="0 0 24 24"><path d="M5 20h14v-2H5zm14-11h-4V3H9v6H5l7 7z"/></symbol>
+<symbol id="i-ok" viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></symbol>
+<symbol id="i-book" viewBox="0 0 24 24"><path d="M18 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM9 4h2v5l-1-.75L9 9zm9 16H6V4h1v9l3-2.25L13 13V4h5z"/></symbol>
+<symbol id="i-gear" viewBox="0 0 24 24"><path d="M19.14 12.94a7 7 0 0 0 0-1.88l2.03-1.58-1.92-3.32-2.39.96a7 7 0 0 0-1.62-.94L14.88 3.6h-3.84l-.36 2.58a7 7 0 0 0-1.62.94l-2.39-.96-1.92 3.32 2.03 1.58a7 7 0 0 0 0 1.88l-2.03 1.58 1.92 3.32 2.39-.96c.5.38 1.04.7 1.62.94l.36 2.58h3.84l.36-2.58a7 7 0 0 0 1.62-.94l2.39.96 1.92-3.32zM12.96 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2z"/></symbol>
+<symbol id="i-loc" viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm8.94 3A9 9 0 0 0 13 3.06V1h-2v2.06A9 9 0 0 0 3.06 11H1v2h2.06A9 9 0 0 0 11 20.94V23h2v-2.06A9 9 0 0 0 20.94 13H23v-2zM12 19a7 7 0 1 1 0-14 7 7 0 0 1 0 14z"/></symbol>
+</svg>
+
+<!-- configuração inicial -->
+<section id="setup" class="hide">
+  <h1>Ouvir</h1>
+  <p style="color:var(--tx2)">Seus livros, lidos em voz natural.</p>
+  <p><b>Primeiro acesso:</b> cole uma chave do GitHub para o app acessar seus livros.</p>
+  <ol>
+    <li>Abra <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">github.com/settings/personal-access-tokens/new</a></li>
+    <li>Nome: <i>ouvir</i> · Validade: <i>No expiration</i> (ou 1 ano)</li>
+    <li>Repository access: <i>Only select repositories</i> → <b>audiolivros-dados</b></li>
+    <li>Permissions → Repository: <b>Contents: Read and write</b> e <b>Actions: Read-only</b></li>
+    <li>Gerar e copiar a chave (começa com <code>github_pat_</code>)</li>
+  </ol>
+  <input id="tok" class="inp" placeholder="github_pat_..." autocomplete="off">
+  <button class="btn" id="tokok">Entrar</button>
+  <p class="note">A chave fica salva só neste aparelho.</p>
+</section>
+
+<!-- biblioteca -->
+<section id="lib" class="hide">
+  <div class="top"><h1>Biblioteca</h1><button class="ibtn" id="bset" aria-label="Ajustes"><svg><use href="#i-gear"/></svg></button></div>
+  <div id="grid" class="grid"></div>
+</section>
+<button class="fab hide" id="fab"><svg><use href="#i-plus"/></svg>Adicionar</button>
+
+<div id="mini" class="hide">
+  <div class="mc"></div>
+  <div class="mt"><b></b><span></span></div>
+  <button class="ibtn" id="mpp" style="background:none"><svg><use href="#i-play"/></svg></button>
+  <div class="mbar"><i></i></div>
+</div>
+
+<!-- player -->
+<section id="pl">
+  <div class="ph">
+    <button class="ibtn" id="pclose" style="background:none"><svg><use href="#i-down"/></svg></button>
+    <div class="tt"><b id="ptitle"></b><span id="pcap"></span></div>
+    <button class="ibtn" id="pmore" style="background:none"><svg><use href="#i-more"/></svg></button>
+  </div>
+  <div id="txt"></div>
+  <button id="back2" class="hide"><svg><use href="#i-loc"/></svg>Voltar à leitura</button>
+  <div class="pc">
+    <div class="seek"><input type="range" id="sk" min="0" max="1000" value="0"></div>
+    <div class="tm"><span id="tcur">0:00</span><span id="tcap"></span><span id="trem">-0:00</span></div>
+    <div class="ctl">
+      <button class="sm" id="bprev"><svg><use href="#i-prev"/></svg></button>
+      <button class="sm" id="bb"><svg><use href="#i-b15"/></svg></button>
+      <button class="pp" id="bpp"><svg><use href="#i-play"/></svg></button>
+      <button class="sm" id="bf"><svg><use href="#i-f15"/></svg></button>
+      <button class="sm" id="bnext"><svg><use href="#i-next"/></svg></button>
+    </div>
+    <div class="tools">
+      <button id="tspeed"><b id="spv">1x</b>Velocidade</button>
+      <button id="tsleep"><svg><use href="#i-moon"/></svg><span id="slv">Timer</span></button>
+      <button id="tcaps"><svg><use href="#i-list"/></svg>Capítulos</button>
+      <button id="taa"><svg><use href="#i-aa"/></svg>Texto</button>
+    </div>
+  </div>
+</section>
+
+<div id="veil"></div>
+<div class="sheet" id="sh"></div>
+<div id="toast"></div>
+<audio id="au" preload="auto"></audio>
+
+<script>
+const REPO = 'arturaragao/audiolivros-dados';
+const API = 'https://api.github.com/repos/' + REPO;
+const $ = s => document.querySelector(s), au = $('#au');
+const LS = {get(k, d) { try { const v = localStorage.getItem('ouvir.' + k); return v == null ? d : JSON.parse(v) } catch { return d } },
+            set(k, v) { try { localStorage.setItem('ouvir.' + k, JSON.stringify(v)) } catch {} }};
+let TOKEN = LS.get('token', ''), LIVROS = [], FILA = [], VOZES = [], cur = null; // cur = {livro, cap, dados, words}
+const PREFS = Object.assign({fs: 20, theme: 'dark', speed: 1, voz: 'francisca'}, LS.get('prefs', {}));
+const savePrefs = () => LS.set('prefs', PREFS);
+const fmt = s => { s = Math.max(0, Math.floor(s || 0)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = String(s % 60).padStart(2, '0'); return h ? `${h}:${String(m).padStart(2, '0')}:${x}` : `${m}:${x}` };
+const fmtDur = s => { const h = Math.floor(s / 3600), m = Math.round(s % 3600 / 60); return h ? `${h} h ${m} min` : `${m} min` };
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+function toast(m, ms = 2600) { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('on'), ms) }
+function applyPrefs() { document.documentElement.dataset.theme = PREFS.theme; document.documentElement.style.setProperty('--fs', PREFS.fs + 'px');
+  $('meta[name=theme-color]').content = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() }
+
+/* ---------- GitHub ---------- */
+async function gh(path, opt = {}) {
+  const r = await fetch(API + path, {...opt, cache: 'no-store', headers: {Authorization: 'Bearer ' + TOKEN, Accept: 'application/vnd.github+json', ...(opt.headers || {})}});
+  if (r.status === 401) { LS.set('token', ''); location.reload() }
+  return r;
+}
+const raw = p => gh('/contents/' + encodeURI(p), {headers: {Accept: 'application/vnd.github.raw'}});
+async function cached(p, ver, tipo = 'blob') { // arquivos imutáveis: guardados no aparelho
+  const key = `https://ouvir.local/${p}?v=${ver}`, c = self.caches ? await caches.open('ouvir-dados') : null;
+  let r = c && await c.match(key);
+  if (!r) { const g = await raw(p); if (!g.ok) throw new Error('HTTP ' + g.status + ' em ' + p); if (c) await c.put(key, g.clone()).catch(() => {}); r = g }
+  return tipo === 'json' ? r.json() : r.blob();
+}
+const isCached = async (p, ver) => !!self.caches && !!(await (await caches.open('ouvir-dados')).match(`https://ouvir.local/${p}?v=${ver}`));
+const coverUrls = {};
+async function coverURL(l) { if (!l.capa) return null; if (coverUrls[l.id]) return coverUrls[l.id];
+  try { return coverUrls[l.id] = URL.createObjectURL(await cached(`livros/${l.id}/${l.capa}`, l.criado)) } catch { return null } }
+
+/* ---------- biblioteca ---------- */
+const prog = id => LS.get('pos.' + id, null);
+function pct(l) { const p = prog(l.id); if (!p || !l.duracao) return 0; return Math.min(100, (p.abs || 0) / l.duracao * 100) }
+function grad(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return `linear-gradient(160deg,hsl(${h} 45% 38%),hsl(${(h + 40) % 360} 50% 18%))` }
+async function carregaLib(silent) {
+  try {
+    const [ri, rf] = await Promise.all([raw('livros/index.json'), gh('/contents/entrada')]);
+    LIVROS = ri.ok ? await ri.json() : [];
+    const fs = rf.ok ? await rf.json() : [];
+    const nomes = fs.map(f => f.name);
+    FILA = fs.filter(f => /\.(epub|pdf)$/i.test(f.name) || /\.falhou$/.test(f.name)).map(f => ({nome: f.name, falhou: /\.falhou$/.test(f.name), errotxt: nomes.includes(f.name.replace(/\.falhou$/, '') + '.erro.txt') ? f.name.replace(/\.falhou$/, '') + '.erro.txt' : null}));
+    LS.set('cache.lib', {LIVROS, FILA});
+  } catch (e) { const c = LS.get('cache.lib', null); if (c) ({LIVROS, FILA} = c); if (!silent) toast('Sem conexão — mostrando o que está salvo') }
+  renderLib();
+  const ocupado = FILA.some(f => !f.falhou) || LIVROS.some(l => l.pronto < l.total);
+  clearTimeout(carregaLib._t); if (ocupado) carregaLib._t = setTimeout(() => carregaLib(true), 25000);
+  if (cur) { const l = LIVROS.find(x => x.id === cur.livro.id); if (l && l.pronto > cur.livro.pronto) { cur.livro = await livroMeta(l, true) } }
+}
+async function renderLib() {
+  const g = $('#grid');
+  const filaVisivel = FILA.filter(f => !LIVROS.some(l => l.pronto < l.total && f.nome.includes(l.titulo)));
+  if (!LIVROS.length && !filaVisivel.length) { g.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>Sua biblioteca está vazia</b>Toque em <b style="display:inline">Adicionar</b> para enviar um EPUB ou PDF.</div>`; return }
+  let h = '';
+  for (const f of filaVisivel) {
+    const nome = f.nome.replace(/\.(falhou)$/, '').replace(/^[^_]+__/, '').replace(/\.(epub|pdf)$/i, '').replace(/_/g, ' ');
+    h += `<button class="card" data-fila="${esc(f.nome)}"><div class="cov" style="background:${grad(nome)}"><div class="gen">${esc(nome)}</div>
+      <span class="chip ${f.falhou ? 'err' : ''}">${f.falhou ? 'Falhou' : '<span class="spin" style="width:10px;height:10px;border-width:2px"></span> Na fila'}</span></div><h3>${esc(nome)}</h3><p>${f.falhou ? 'Toque para ver o erro' : 'Preparando…'}</p></button>`;
+  }
+  for (const l of LIVROS) {
+    const p = pct(l), conv = l.pronto < l.total;
+    h += `<button class="card" data-id="${esc(l.id)}"><div class="cov" style="background:${grad(l.titulo)}"><div class="gen">${esc(l.titulo)}</div>
+      ${conv ? `<span class="chip"><span class="spin" style="width:10px;height:10px;border-width:2px"></span> ${l.pronto}/${l.total}</span>` : ''}
+      <span class="dot hide" data-off="${esc(l.id)}"><svg><use href="#i-ok"/></svg></span>
+      ${p ? `<div class="bar"><i style="width:${p}%"></i></div>` : ''}</div>
+      <h3>${esc(l.titulo)}</h3><p>${esc(l.autor || '')}${l.autor ? ' · ' : ''}${p >= 99 ? 'Concluído' : p ? Math.round(p) + '%' : fmtDur(l.duracao)}</p></button>`;
+  }
+  g.innerHTML = h;
+  for (const l of LIVROS) coverURL(l).then(u => { if (!u) return; const c = g.querySelector(`[data-id="${CSS.escape(l.id)}"] .cov`); if (c) { c.insertAdjacentHTML('afterbegin', `<img src="${u}" alt="">`); c.querySelector('.gen')?.remove() } });
+  for (const l of LIVROS) offlineCompleto(l).then(ok => { if (ok) g.querySelector(`[data-off="${CSS.escape(l.id)}"]`)?.classList.remove('hide') });
+}
+$('#grid').addEventListener('click', e => {
+  const c = e.target.closest('.card'); if (!c) return;
+  if (c.dataset.id) abreLivro(c.dataset.id);
+  else if (c.dataset.fila) menuFila(c.dataset.fila);
+});
+let lpT; $('#grid').addEventListener('pointerdown', e => { const c = e.target.closest('[data-id]'); if (!c) return; lpT = setTimeout(() => { lpT = null; menuLivro(c.dataset.id) }, 550) });
+['pointerup', 'pointercancel', 'pointermove'].forEach(ev => $('#grid').addEventListener(ev, e => { if (ev !== 'pointermove' || Math.abs(e.movementY) > 3) clearTimeout(lpT) }));
+$('#grid').addEventListener('contextmenu', e => { if (e.target.closest('[data-id]')) e.preventDefault() });
+
+async function menuFila(nome) {
+  const f = FILA.find(x => x.nome === nome); let msg = 'Este livro está na fila. A conversão começa em instantes e os capítulos aparecem conforme ficam prontos.';
+  if (f?.falhou && f.errotxt) { try { msg = 'Erro: ' + await (await raw('entrada/' + f.errotxt)).text() } catch {} }
+  sheet(`<h2>${esc(nome.replace(/^[^_]+__/, '').replace(/\.falhou$/, ''))}</h2><p class="note">${esc(msg)}</p>
+    <button class="btn2" id="rmf" style="color:#ef4444">Remover da fila</button>`);
+  $('#rmf').onclick = async () => { closeSheet(); for (const n of [nome, f?.errotxt].filter(Boolean)) await apagaArquivo('entrada/' + n); toast('Removido'); carregaLib() };
+}
+async function apagaArquivo(p) { const r = await gh('/contents/' + encodeURI(p)); if (!r.ok) return; const j = await r.json();
+  await gh('/contents/' + encodeURI(p), {method: 'DELETE', body: JSON.stringify({message: 'remove ' + p, sha: j.sha})}) }
+
+function menuLivro(id) {
+  const l = LIVROS.find(x => x.id === id); if (!l) return;
+  sheet(`<h2>${esc(l.titulo)}</h2><p class="note" style="margin-top:-8px">${l.total} capítulos · ${fmtDur(l.duracao)} · voz ${esc(VOZES.find(v => v.id === l.vozid)?.nome || l.voz)}</p>
+    <button class="row" id="m-dl"><svg><use href="#i-dl"/></svg><div class="grow">Baixar para ouvir offline<small id="m-dls">Guarda todos os capítulos neste aparelho</small></div></button>
+    <button class="row" id="m-reset"><svg><use href="#i-prev"/></svg><div class="grow">Recomeçar do início</div></button>
+    <button class="row" id="m-free"><svg><use href="#i-book"/></svg><div class="grow">Liberar espaço<small>Apaga os áudios baixados deste livro</small></div></button>
+    <button class="row" id="m-del" style="color:#ef4444"><svg style="fill:#ef4444"><use href="#i-more"/></svg><div class="grow">Apagar livro</div></button>`);
+  $('#m-dl').onclick = () => baixaLivro(l, $('#m-dls'));
+  $('#m-reset').onclick = () => { LS.set('pos.' + id, null); closeSheet(); renderLib(); toast('Progresso zerado') };
+  $('#m-free').onclick = async () => { const c = await caches.open('ouvir-dados'); for (const k of await c.keys()) if (k.url.includes(`/livros/${id}/cap_`)) await c.delete(k); closeSheet(); renderLib(); toast('Espaço liberado') };
+  $('#m-del').onclick = async () => { if (!confirm(`Apagar "${l.titulo}" da biblioteca?`)) return; closeSheet();
+    const body = btoa(unescape(encodeURIComponent(JSON.stringify({id}))));
+    await gh(`/contents/entrada/apagar-${encodeURIComponent(id)}.json`, {method: 'PUT', body: JSON.stringify({message: 'apagar ' + id, content: body})});
+    LIVROS = LIVROS.filter(x => x.id !== id); renderLib(); toast('Livro será apagado em instantes') };
+}
+const metas = {};
+async function livroMeta(l, fresh) {
+  if (!fresh && metas[l.id]) return metas[l.id];
+  try { const r = await raw(`livros/${l.id}/livro.json`); metas[l.id] = await r.json(); LS.set('meta.' + l.id, metas[l.id]) }
+  catch { metas[l.id] = LS.get('meta.' + l.id, null) }
+  return metas[l.id];
+}
+async function offlineCompleto(l) { const m = LS.get('meta.' + l.id, null); if (!m || m.pronto < m.total) return false;
+  for (const c of m.capitulos) if (!await isCached(`livros/${l.id}/${c.arq}.mp3`, m.criado)) return false; return true }
+async function baixaLivro(l, el) {
+  const m = await livroMeta(l, true); let i = 0;
+  for (const c of m.capitulos) { el.textContent = `Baixando ${++i}/${m.capitulos.length}…`;
+    try { await cached(`livros/${l.id}/${c.arq}.json`, m.criado, 'json'); await cached(`livros/${l.id}/${c.arq}.mp3`, m.criado) } catch (e) { el.textContent = 'Erro: ' + e.message; return } }
+  el.textContent = m.pronto < m.total ? `Baixados ${i} (o resto ainda está sendo convertido)` : 'Tudo baixado ✓'; renderLib();
+}
+
+/* ---------- folhas ---------- */
+function sheet(html) { $('#sh').innerHTML = html; $('#sh').scrollTop = 0; $('#sh').classList.add('on'); $('#veil').classList.add('on') }
+function closeSheet() { $('#sh').classList.remove('on'); $('#veil').classList.remove('on'); prevAu.pause() }
+$('#veil').onclick = closeSheet;
+
+/* ---------- vozes / envio ---------- */
+const prevAu = new Audio();
+async function carregaVozes() { try { VOZES = await (await raw('vozes.json')).json(); LS.set('vozes', VOZES) } catch { VOZES = LS.get('vozes', []) } }
+function vozesHTML(sel) {
+  const grupos = {}; VOZES.forEach(v => (grupos[v.motor] ??= []).push(v));
+  return Object.entries(grupos).map(([m, vs]) => `<div class="vgrp">${esc(m)} · grátis ${esc(vs[0].gratis)}</div>` + vs.map(v =>
+    `<div class="vo ${v.id === sel ? 'sel' : ''}" data-v="${v.id}"><div class="av" style="background:${grad(v.nome)}">${v.nome[0]}</div>
+     <div class="grow" style="flex:1"><b>${esc(v.nome)}</b> <small style="color:var(--tx2)">${v.genero === 'F' ? 'feminina' : 'masculina'}</small><small style="display:block;color:var(--tx2)">${esc(v.desc)}</small></div>
+     <button class="pv" data-pv="${v.id}" aria-label="Ouvir amostra"><svg><use href="#i-play"/></svg></button></div>`).join('')).join('');
+}
+function ligaVozes(onSel) {
+  $('#sh').querySelectorAll('.vo').forEach(el => el.onclick = e => {
+    if (e.target.closest('.pv')) return;
+    $('#sh').querySelectorAll('.vo').forEach(x => x.classList.toggle('sel', x === el)); onSel(el.dataset.v) });
+  $('#sh').querySelectorAll('.pv').forEach(b => b.onclick = async () => {
+    const id = b.dataset.pv, use = b.querySelector('use');
+    if (prevAu.dataset.id === id && !prevAu.paused) { prevAu.pause(); return }
+    $('#sh').querySelectorAll('.pv use').forEach(u => u.setAttribute('href', '#i-play'));
+    use.setAttribute('href', '#i-pause');
+    try { prevAu.src = URL.createObjectURL(await cached(`vozes/${id}.mp3`, 1)); prevAu.dataset.id = id; await prevAu.play() }
+    catch { use.setAttribute('href', '#i-play'); toast(id.startsWith('g-') ? 'Vozes do Google ainda não ativadas (falta a chave do Google)' : 'Amostra ainda não gerada') }
+    prevAu.onended = prevAu.onpause = () => use.setAttribute('href', '#i-play');
+  });
+}
+$('#fab').onclick = () => {
+  let arq = null, voz = PREFS.voz;
+  sheet(`<h2>Adicionar livro</h2>
+    <label class="file"><input type="file" accept=".epub,.pdf,application/epub+zip,application/pdf" hidden id="fi"><svg><use href="#i-book"/></svg>
+      <div class="grow"><b id="fn">Escolher EPUB ou PDF</b><small style="display:block;color:var(--tx2)" id="fsz">Do celular, Drive ou Downloads</small></div></label>
+    <span class="lab">Voz da narração</span>${vozesHTML(voz)}
+    <button class="btn" id="env" disabled>Converter em audiolivro</button>
+    <p class="note">A conversão leva alguns minutos e acontece mesmo com o app fechado. Os capítulos ficam disponíveis conforme ficam prontos.</p>`);
+  ligaVozes(v => voz = v);
+  $('#fi').onchange = e => { arq = e.target.files[0]; if (!arq) return; $('#fn').textContent = arq.name; $('#fsz').textContent = (arq.size / 1048576).toFixed(1) + ' MB'; $('#env').disabled = false };
+  $('#env').onclick = async () => {
+    if (arq.size > 70 * 1048576) return toast('Arquivo grande demais (máx. 70 MB)');
+    const b = $('#env'); b.disabled = true; b.innerHTML = '<span class="spin"></span> Enviando…';
+    PREFS.voz = voz; savePrefs();
+    const base = arq.name.replace(/\.(epub|pdf)$/i, '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w-]+/g, '_').slice(0, 80);
+    const ext = arq.name.match(/\.(epub|pdf)$/i)?.[1].toLowerCase() || 'epub';
+    const b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result.split(',')[1]); fr.readAsDataURL(arq) });
+    const r = await gh(`/contents/entrada/${voz}__${base}.${ext}`, {method: 'PUT', body: JSON.stringify({message: 'novo livro: ' + arq.name, content: b64})});
+    if (r.ok) { closeSheet(); toast('Enviado! A conversão já começou.'); setTimeout(carregaLib, 1500) }
+    else { b.disabled = false; b.textContent = 'Tentar de novo'; toast('Erro ao enviar (' + r.status + ')' + (r.status === 422 ? ': já existe um arquivo com esse nome' : '')) }
+  };
+};
+
+/* ---------- player ---------- */
+async function abreLivro(id, autoplay = true) {
+  const l = LIVROS.find(x => x.id === id); if (!l) return;
+  const m = await livroMeta(l, true); if (!m || !m.capitulos.length) return toast('O primeiro capítulo ainda está sendo convertido…');
+  const p = prog(id) || {cap: 0, t: 0};
+  $('#pl').classList.add('on'); history.pushState({pl: 1}, '');
+  if (cur && cur.livro.id === id) return;
+  await abreCap(m, Math.min(p.cap, m.capitulos.length - 1), p.t, autoplay);
+}
+function fechaPlayer() { $('#pl').classList.remove('on'); renderMini() }
+$('#pclose').onclick = () => history.back();
+addEventListener('popstate', () => { if ($('#sh').classList.contains('on')) closeSheet(); else if ($('#pl').classList.contains('on')) fechaPlayer() });
+
+let words = [], wIdx = -1, paras = [], pIdx = -1, autoScroll = true, loadTok = 0;
+async function abreCap(m, n, t = 0, play = true) {
+  const tok = ++loadTok, c = m.capitulos[n];
+  cur = {livro: m, cap: n}; renderMini();
+  $('#ptitle').textContent = m.titulo; $('#pcap').textContent = c.titulo; $('#tcap').textContent = `${n + 1}/${m.total}`;
+  $('#txt').innerHTML = '<div class="load"><span class="spin"></span><br><br>Carregando capítulo…</div>';
+  try {
+    const [d, blob] = await Promise.all([cached(`livros/${m.id}/${c.arq}.json`, m.criado, 'json'), cached(`livros/${m.id}/${c.arq}.mp3`, m.criado)]);
+    if (tok !== loadTok) return;
+    renderTexto(d);
+    if (au.src) URL.revokeObjectURL(au.src);
+    au.src = URL.createObjectURL(blob); au.playbackRate = PREFS.speed;
+    await new Promise(r => au.addEventListener('loadedmetadata', r, {once: true}));
+    au.currentTime = Math.min(t, au.duration - 1);
+    autoScroll = true; $('#back2').classList.add('hide'); sync(true);
+    mediaSession();
+    if (play) au.play().catch(() => {});
+    if (n + 1 < m.capitulos.length) setTimeout(() => cached(`livros/${m.id}/${m.capitulos[n + 1].arq}.mp3`, m.criado).catch(() => {}), 4000);
+  } catch (e) { $('#txt').innerHTML = `<div class="load">Não foi possível carregar.<br><small>${esc(e.message)}</small></div>` }
+}
+function renderTexto(d) {
+  const frag = document.createDocumentFragment(); words = []; paras = [];
+  d.p.forEach((p, i) => {
+    const el = document.createElement('p'); if (i === 0 && p.t.length < 120 && !p.t.endsWith('.')) el.className = 'h';
+    let pos = 0; const w = p.w;
+    for (let k = 0; k < w.length; k += 3) {
+      if (w[k] > pos) el.append(p.t.slice(pos, w[k]));
+      const s = document.createElement('w'); s.textContent = p.t.slice(w[k], w[k + 1]); s.dataset.i = words.length;
+      el.append(s); words.push({t: w[k + 2], el: s, p: i}); pos = w[k + 1];
+    }
+    if (pos < p.t.length) el.append(p.t.slice(pos));
+    paras.push({s: p.s, e: p.e, el}); frag.append(el);
+  });
+  $('#txt').innerHTML = ''; $('#txt').append(frag); wIdx = pIdx = -1;
+}
+function busca(t) { let lo = 0, hi = words.length - 1, r = -1; while (lo <= hi) { const m = lo + hi >> 1; if (words[m].t <= t + 0.05) { r = m; lo = m + 1 } else hi = m - 1 } return r }
+function sync(force) {
+  const t = au.currentTime, i = busca(t);
+  if (i !== wIdx) { words[wIdx]?.el.classList.remove('on'); wIdx = i; if (i >= 0) words[i].el.classList.add('on') }
+  let pi = paras.findIndex(p => t >= p.s && t < p.e); if (pi < 0 && i >= 0) pi = words[i].p;
+  if (pi !== pIdx) { paras[pIdx]?.el.classList.remove('cur'); pIdx = pi; paras[pi]?.el.classList.add('cur') }
+  if (autoScroll && i >= 0) { const tx = $('#txt'), el = words[i].el, r = el.getBoundingClientRect(), box = tx.getBoundingClientRect();
+    const alvo = box.top + box.height * .32; if (force || r.top < box.top + 40 || r.bottom > box.top + box.height * .62) { scrollProg = true; tx.scrollTo({top: tx.scrollTop + r.top - alvo, behavior: force ? 'auto' : 'smooth'}); setTimeout(() => scrollProg = false, 600) } }
+  const d = au.duration || 0; $('#sk').value = d ? t / d * 1000 : 0; $('#sk').style.setProperty('--p', (d ? t / d * 100 : 0) + '%');
+  $('#tcur').textContent = fmt(t); $('#trem').textContent = '-' + fmt(d - t);
+}
+let scrollProg = false, raf;
+const loop = () => { sync(); raf = au.paused ? 0 : requestAnimationFrame(loop) };
+['touchmove', 'wheel'].forEach(ev => $('#txt').addEventListener(ev, () => { if (!au.paused || true) { autoScroll = false; $('#back2').classList.remove('hide') } }, {passive: true}));
+$('#back2').onclick = () => { autoScroll = true; $('#back2').classList.add('hide'); sync(true) };
+$('#txt').addEventListener('click', e => { const w = e.target.closest('w'); if (!w) return; au.currentTime = words[+w.dataset.i].t + 0.01; autoScroll = true; $('#back2').classList.add('hide'); au.play(); sync(true) });
+
+const icoPP = () => { const u = au.paused ? '#i-play' : '#i-pause'; $('#bpp use').setAttribute('href', u); $('#mpp use').setAttribute('href', u) };
+au.onplay = () => { icoPP(); if (!raf) raf = requestAnimationFrame(loop); navigator.mediaSession && (navigator.mediaSession.playbackState = 'playing') };
+au.onpause = () => { icoPP(); salvaPos(); navigator.mediaSession && (navigator.mediaSession.playbackState = 'paused') };
+au.onseeked = () => { sync(); salvaPos() };
+au.onended = () => { if (sleepFimCap) { sleepFimCap = false; marcaSleep(); salvaPos(); return } proximo(true) };
+let lastSave = 0; au.ontimeupdate = () => { if (Date.now() - lastSave > 5000) salvaPos(); if (au.paused) sync(); updMini(); posState() };
+function salvaPos() { if (!cur) return; lastSave = Date.now(); const m = cur.livro, ante = m.capitulos.slice(0, cur.cap).reduce((a, c) => a + c.dur, 0);
+  LS.set('pos.' + m.id, {cap: cur.cap, t: au.currentTime, abs: ante + au.currentTime, ts: Date.now()}); LS.set('ultimo', m.id) }
+async function proximo(auto) { if (!cur) return; const m = cur.livro;
+  if (cur.cap + 1 < m.capitulos.length) return abreCap(m, cur.cap + 1, 0, true);
+  const l = LIVROS.find(x => x.id === m.id);
+  if (m.pronto < m.total || (l && l.pronto < l.total)) { const nm = await livroMeta(l || m, true); if (nm.capitulos.length > cur.cap + 1) return abreCap(nm, cur.cap + 1, 0, true); toast('Próximo capítulo ainda está sendo convertido') }
+  else if (auto) { salvaPos(); toast('Fim do livro 🎉') } }
+$('#bpp').onclick = $('#mpp').onclick = e => { e.stopPropagation(); if (!au.src) return; au.paused ? au.play() : au.pause() };
+$('#bb').onclick = () => { au.currentTime = Math.max(0, au.currentTime - 15) };
+$('#bf').onclick = () => { au.currentTime = Math.min(au.duration - .1, au.currentTime + 15) };
+$('#bprev').onclick = () => { if (au.currentTime > 5 || !cur.cap) au.currentTime = 0; else abreCap(cur.livro, cur.cap - 1, 0, !au.paused) };
+$('#bnext').onclick = () => proximo(false);
+$('#sk').oninput = e => { au.currentTime = e.target.value / 1000 * (au.duration || 0); autoScroll = true; $('#back2').classList.add('hide') };
+
+/* velocidade */
+const SPEEDS = [0.5, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+function setSpeed(s) { PREFS.speed = s; savePrefs(); au.playbackRate = s; $('#spv').textContent = s + 'x'; $('#tspeed').classList.toggle('act', s !== 1) }
+$('#tspeed').onclick = () => { sheet(`<h2>Velocidade</h2><div class="pills">${SPEEDS.map(s => `<button data-s="${s}" class="${s === PREFS.speed ? 'sel' : ''}">${s}x</button>`).join('')}</div>`);
+  $('#sh').querySelectorAll('[data-s]').forEach(b => b.onclick = () => { setSpeed(+b.dataset.s); closeSheet() }) };
+
+/* timer */
+let sleepT = null, sleepAte = 0, sleepFimCap = false;
+function marcaSleep() { const on = sleepT || sleepFimCap; $('#tsleep').classList.toggle('act', !!on);
+  $('#slv').textContent = sleepFimCap ? 'Fim do cap.' : sleepT ? fmt((sleepAte - Date.now()) / 1000) : 'Timer' }
+setInterval(() => { if (sleepT) marcaSleep() }, 1000);
+$('#tsleep').onclick = () => { sheet(`<h2>Timer para dormir</h2><div class="pills">${[5, 10, 15, 30, 45, 60, 90].map(m => `<button data-m="${m}">${m} min</button>`).join('')}<button data-m="fim">Fim do capítulo</button><button data-m="0">Desligar</button></div>`);
+  $('#sh').querySelectorAll('[data-m]').forEach(b => b.onclick = () => { clearTimeout(sleepT); sleepT = null; sleepFimCap = false; const v = b.dataset.m;
+    if (v === 'fim') sleepFimCap = true; else if (+v) { sleepAte = Date.now() + v * 60000; sleepT = setTimeout(() => { fadeOut(); sleepT = null; marcaSleep() }, v * 60000) }
+    marcaSleep(); closeSheet(); toast(v === '0' ? 'Timer desligado' : 'Timer ativado') }) };
+function fadeOut() { let v = 1; const i = setInterval(() => { v -= .1; au.volume = Math.max(0, v); if (v <= 0) { clearInterval(i); au.pause(); au.volume = 1 } }, 300) }
+
+/* capítulos */
+$('#tcaps').onclick = async () => { const m = cur.livro, cache = await Promise.all(m.capitulos.map(c => isCached(`livros/${m.id}/${c.arq}.mp3`, m.criado)));
+  sheet(`<h2>Capítulos</h2>${m.capitulos.map((c, i) => `<button class="row ${i === cur.cap ? 'sel' : ''}" data-c="${i}"><span style="width:26px;color:var(--tx3)">${i + 1}</span><div class="grow">${esc(c.titulo)}<small>${fmtDur(c.dur)}${cache[i] ? ' · baixado' : ''}</small></div></button>`).join('')}
+    ${m.pronto < m.total ? `<p class="note">Convertendo… ${m.pronto} de ${m.total} prontos.</p>` : ''}`);
+  $('#sh').querySelectorAll('[data-c]').forEach(b => b.onclick = () => { closeSheet(); abreCap(m, +b.dataset.c, 0, true) });
+  $('#sh').querySelector('.sel')?.scrollIntoView({block: 'center'}) };
+
+/* texto */
+$('#taa').onclick = () => { sheet(`<h2>Texto</h2><span class="lab">Tamanho</span><input type="range" class="fsr" min="15" max="30" value="${PREFS.fs}" id="fsr">
+  <span class="lab">Tema</span><div class="pills">${[['dark', 'Escuro'], ['light', 'Claro'], ['sepia', 'Sépia']].map(([k, n]) => `<button data-t="${k}" class="${PREFS.theme === k ? 'sel' : ''}">${n}</button>`).join('')}</div>`);
+  $('#fsr').oninput = e => { PREFS.fs = +e.target.value; savePrefs(); applyPrefs() };
+  $('#sh').querySelectorAll('[data-t]').forEach(b => b.onclick = () => { PREFS.theme = b.dataset.t; savePrefs(); applyPrefs(); $('#sh').querySelectorAll('[data-t]').forEach(x => x.classList.toggle('sel', x === b)) }) };
+$('#pmore').onclick = () => menuLivro(cur.livro.id);
+
+/* ajustes */
+$('#bset').onclick = async () => { let uso = ''; try { const e = await navigator.storage.estimate(); uso = (e.usage / 1048576).toFixed(0) + ' MB usados no aparelho' } catch {}
+  sheet(`<h2>Ajustes</h2><span class="lab">Voz padrão para novos livros</span>${vozesHTML(PREFS.voz)}
+    <span class="lab">Tema</span><div class="pills">${[['dark', 'Escuro'], ['light', 'Claro'], ['sepia', 'Sépia']].map(([k, n]) => `<button data-t="${k}" class="${PREFS.theme === k ? 'sel' : ''}">${n}</button>`).join('')}</div>
+    <p class="note">${uso}</p><button class="btn2" id="sair">Trocar chave do GitHub</button>`);
+  ligaVozes(v => { PREFS.voz = v; savePrefs() });
+  $('#sh').querySelectorAll('[data-t]').forEach(b => b.onclick = () => { PREFS.theme = b.dataset.t; savePrefs(); applyPrefs(); $('#sh').querySelectorAll('[data-t]').forEach(x => x.classList.toggle('sel', x === b)) });
+  $('#sair').onclick = () => { LS.set('token', ''); location.reload() } };
+
+/* mini player + tela de bloqueio */
+function renderMini() { const show = cur && !$('#pl').classList.contains('on'); $('#mini').classList.toggle('hide', !show); if (!cur) return;
+  $('#mini b').textContent = cur.livro.titulo; $('#mini span').textContent = cur.livro.capitulos[cur.cap].titulo;
+  const l = LIVROS.find(x => x.id === cur.livro.id) || cur.livro; coverURL(l).then(u => $('#mini .mc').innerHTML = u ? `<img src="${u}">` : `<div style="width:100%;height:100%;background:${grad(l.titulo)}"></div>`); updMini() }
+function updMini() { if (!$('#mini').classList.contains('hide')) $('#mini .mbar i').style.width = (au.duration ? au.currentTime / au.duration * 100 : 0) + '%' }
+$('#mini').onclick = () => { $('#pl').classList.add('on'); history.pushState({pl: 1}, ''); renderMini(); sync(true) };
+async function mediaSession() { if (!('mediaSession' in navigator) || !cur) return; const l = LIVROS.find(x => x.id === cur.livro.id) || cur.livro, u = await coverURL(l);
+  navigator.mediaSession.metadata = new MediaMetadata({title: cur.livro.capitulos[cur.cap].titulo, artist: cur.livro.autor || '', album: cur.livro.titulo, artwork: u ? [{src: u, sizes: '600x900', type: 'image/jpeg'}] : []});
+  const h = {play: () => au.play(), pause: () => au.pause(), seekbackward: () => $('#bb').click(), seekforward: () => $('#bf').click(), previoustrack: () => $('#bprev').click(), nexttrack: () => proximo(false), seekto: e => au.currentTime = e.seekTime};
+  for (const [k, f] of Object.entries(h)) try { navigator.mediaSession.setActionHandler(k, f) } catch {} }
+function posState() { try { if (au.duration) navigator.mediaSession.setPositionState({duration: au.duration, playbackRate: au.playbackRate, position: au.currentTime}) } catch {} }
+
+/* ---------- início ---------- */
+async function inicia() {
+  applyPrefs(); setSpeed(PREFS.speed);
+  if (!TOKEN) { $('#setup').classList.remove('hide'); return }
+  $('#lib').classList.remove('hide'); $('#fab').classList.remove('hide');
+  const c = LS.get('cache.lib', null); if (c) { ({LIVROS, FILA} = c); renderLib() }
+  await Promise.all([carregaLib(), carregaVozes()]);
+  const ult = LS.get('ultimo', null), l = ult && LIVROS.find(x => x.id === ult);
+  if (l) { const m = await livroMeta(l), p = prog(l.id) || {cap: 0, t: 0}; if (m?.capitulos.length) abreCap(m, Math.min(p.cap, m.capitulos.length - 1), p.t, false) }
+}
+$('#tokok').onclick = async () => { const t = $('#tok').value.trim(); if (!t) return; TOKEN = t;
+  const r = await fetch(API, {headers: {Authorization: 'Bearer ' + t}}); if (!r.ok) { TOKEN = ''; return toast('Chave inválida ou sem acesso ao audiolivros-dados') }
+  LS.set('token', t); $('#setup').classList.add('hide'); inicia() };
+document.addEventListener('visibilitychange', () => { if (document.hidden) salvaPos(); else if (TOKEN) carregaLib(true) });
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+inicia();
+</script>
+</body>
+</html>
