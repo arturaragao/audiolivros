@@ -275,7 +275,9 @@ async function cached(p, ver, tipo = 'blob') { // arquivos imutáveis: guardados
   const key = `https://ouvir.local/${p}?v=${ver}`, c = self.caches ? await caches.open('ouvir-dados') : null;
   let r = c && await c.match(key);
   if (!r) { const g = await raw(p); if (!g.ok) throw new Error('HTTP ' + g.status + ' em ' + p); if (c) await c.put(key, g.clone()).catch(() => {}); r = g }
-  return tipo === 'json' ? r.json() : r.blob();
+  if (tipo === 'json') return r.json();
+  const b = await r.blob(), ext = p.split('.').pop().toLowerCase(), mime = {mp3: 'audio/mpeg', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', css: 'text/css', img: 'image/jpeg'}[ext];
+  return mime && b.type !== mime ? new Blob([b], {type: mime}) : b;  // iPhone só toca áudio com o tipo certo
 }
 const isCached = async (p, ver) => !!self.caches && !!(await (await caches.open('ouvir-dados')).match(`https://ouvir.local/${p}?v=${ver}`));
 const coverUrls = {};
