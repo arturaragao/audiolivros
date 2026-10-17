@@ -510,10 +510,22 @@ $('#pmore').onclick = () => menuLivro(cur.livro.id);
 $('#bset').onclick = async () => { let uso = ''; try { const e = await navigator.storage.estimate(); uso = (e.usage / 1048576).toFixed(0) + ' MB usados no aparelho' } catch {}
   sheet(`<h2>Ajustes</h2><span class="lab">Voz padrão para novos livros</span>${vozesHTML(PREFS.voz)}
     <span class="lab">Tema</span><div class="pills">${[['dark', 'Escuro'], ['light', 'Claro'], ['sepia', 'Sépia']].map(([k, n]) => `<button data-t="${k}" class="${PREFS.theme === k ? 'sel' : ''}">${n}</button>`).join('')}</div>
-    <p class="note">${uso}</p><button class="btn2" id="sair">Trocar chave do GitHub</button>`);
+    <button class="btn2" id="outro">📱 Usar em outro celular</button><p class="note">${uso}</p><button class="btn2" id="sair">Trocar chave do GitHub</button>`);
   ligaVozes(v => { PREFS.voz = v; savePrefs() });
   $('#sh').querySelectorAll('[data-t]').forEach(b => b.onclick = () => { PREFS.theme = b.dataset.t; savePrefs(); applyPrefs(); $('#sh').querySelectorAll('[data-t]').forEach(x => x.classList.toggle('sel', x === b)) });
-  $('#sair').onclick = () => { LS.set('token', ''); location.reload() } };
+  $('#sair').onclick = () => { LS.set('token', ''); location.reload() };
+  $('#outro').onclick = outroCelular };
+async function outroCelular() {
+  const link = location.origin + location.pathname + '#k=' + TOKEN;
+  sheet(`<h2>Usar em outro celular</h2><p class="note" style="margin-top:-6px">No outro celular, aponte a câmera para o código ou abra o link. Ele entra direto, sem pedir chave.</p>
+    <div id="qr" style="background:#fff;padding:14px;border-radius:14px;width:max-content;margin:16px auto"></div>
+    <button class="btn" id="shl">Enviar link (WhatsApp, e-mail…)</button><button class="btn2" id="cpl">Copiar link</button>
+    <p class="note">⚠️ Quem tiver esse link acessa seus livros. Envie só para você mesmo.</p>`);
+  try { if (!window.QRCode) await new Promise((r, j) => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'; sc.onload = r; sc.onerror = j; document.head.append(sc) });
+    new QRCode($('#qr'), {text: link, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.L}) } catch { $('#qr').remove() }
+  $('#shl').onclick = () => navigator.share ? navigator.share({title: 'Ouvir', url: link}).catch(() => {}) : $('#cpl').click();
+  $('#cpl').onclick = async () => { try { await navigator.clipboard.writeText(link); toast('Link copiado') } catch { prompt('Copie o link:', link) } };
+}
 
 /* mini player + tela de bloqueio */
 function renderMini() { const show = cur && !$('#pl').classList.contains('on'); $('#mini').classList.toggle('hide', !show); if (!cur) return;
@@ -530,6 +542,10 @@ function posState() { try { if (au.duration) navigator.mediaSession.setPositionS
 /* ---------- início ---------- */
 async function inicia() {
   applyPrefs(); setSpeed(PREFS.speed);
+  const hk = location.hash.match(/k=([\w-]+)/);
+  if (hk) { history.replaceState(null, '', location.pathname);
+    const r = await fetch(API, {headers: {Authorization: 'Bearer ' + hk[1]}}).catch(() => null);
+    if (r?.ok) { TOKEN = hk[1]; LS.set('token', TOKEN); toast('Conectado ✓') } else toast('Link de acesso inválido') }
   if (!TOKEN) { $('#setup').classList.remove('hide'); return }
   $('#lib').classList.remove('hide'); $('#fab').classList.remove('hide');
   const c = LS.get('cache.lib', null); if (c) { ({LIVROS, FILA} = c); renderLib() }
