@@ -63,6 +63,7 @@ svg{width:24px;height:24px;fill:currentColor;flex:none}
 #txt p.cur{background:var(--pbg)}
 #txt p.h{font-weight:600;font-size:1.15em;margin-bottom:1.2em}
 #txt w{border-radius:4px;transition:background .12s,color .12s;cursor:pointer}
+#txt w.mk{background:rgba(250,204,21,.28);border-radius:0}
 #txt w.on{background:var(--hlbg);color:var(--hl);box-shadow:0 0 0 2px var(--hlbg)}
 #txt .load{color:var(--tx2);font:15px Inter,sans-serif;text-align:center;padding-top:30vh}
 #back2{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 190px);background:var(--ac);color:var(--bg);font-weight:600;font-size:13px;padding:9px 16px;border-radius:99px;box-shadow:0 6px 20px rgba(0,0,0,.35);display:flex;gap:6px;align-items:center}
@@ -96,7 +97,7 @@ svg{width:24px;height:24px;fill:currentColor;flex:none}
 .row.sel{color:var(--hl)}
 .row.sel small{color:var(--hl);opacity:.8}
 .pills{display:flex;flex-wrap:wrap;gap:8px}
-.pills button{padding:9px 14px;border-radius:99px;background:var(--bg3);font-weight:600;font-size:14px}
+.pills button{white-space:nowrap;padding:9px 14px;border-radius:99px;background:var(--bg3);font-weight:600;font-size:14px}
 .pills button.sel{background:var(--ac);color:var(--bg)}
 .vgrp{font-size:12px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em;margin:16px 0 4px}
 .vo{display:flex;align-items:center;gap:12px;padding:10px;border-radius:12px;width:100%;text-align:left;border:2px solid transparent}
@@ -168,7 +169,8 @@ input[type=range].fsr{width:100%}
 
 <!-- biblioteca -->
 <section id="lib" class="hide">
-  <div class="top"><h1>Biblioteca</h1><div style="display:flex;gap:8px"><button class="ibtn hide" id="binst" style="width:auto;padding:0 14px;border-radius:99px;font-weight:600;font-size:13px">Instalar app</button><button class="ibtn" id="bset" aria-label="Ajustes"><svg><use href="#i-gear"/></svg></button></div></div>
+  <div class="top"><h1>Biblioteca</h1><div style="display:flex;gap:8px"><button class="ibtn hide" id="binst" style="width:auto;padding:0 14px;border-radius:99px;font-weight:600;font-size:13px">Instalar app</button><button class="ibtn" id="bstat" aria-label="Estatísticas"><svg viewBox="0 0 24 24"><path d="M5 9h3v10H5zm5.5-5h3v15h-3zM16 13h3v6h-3z"/></svg></button><button class="ibtn" id="bset" aria-label="Ajustes"><svg><use href="#i-gear"/></svg></button></div></div>
+  <div class="pills" id="chips" style="margin:-4px 0 16px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none"></div>
   <div id="grid" class="grid"></div>
 </section>
 <button class="fab hide" id="fab"><svg><use href="#i-plus"/></svg>Adicionar</button>
@@ -185,7 +187,7 @@ input[type=range].fsr{width:100%}
   <div class="ph">
     <button class="ibtn" id="pclose" style="background:none"><svg><use href="#i-down"/></svg></button>
     <div class="tt"><b id="ptitle"></b><span id="pcap"></span></div>
-    <button class="ibtn" id="pmore" style="background:none"><svg><use href="#i-more"/></svg></button>
+    <button class="ibtn" id="psrch" style="background:none" aria-label="Buscar"><svg viewBox="0 0 24 24"><path d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 14 15.5l.3.3v.8l5 5 1.5-1.5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg></button><button class="ibtn" id="pmore" style="background:none"><svg><use href="#i-more"/></svg></button>
   </div>
   <div id="txt"></div>
   <button id="back2" class="hide"><svg><use href="#i-loc"/></svg>Voltar à leitura</button>
@@ -203,6 +205,7 @@ input[type=range].fsr{width:100%}
       <button id="tspeed"><b id="spv">1x</b>Velocidade</button>
       <button id="tsleep"><svg><use href="#i-moon"/></svg><span id="slv">Timer</span></button>
       <button id="tcaps"><svg><use href="#i-list"/></svg>Capítulos</button>
+      <button id="tmk"><svg viewBox="0 0 24 24"><path d="M17 3H7a2 2 0 0 0-2 2v16l7-3 7 3V5a2 2 0 0 0-2-2z"/></svg>Destaques</button>
       <button id="taa"><svg><use href="#i-aa"/></svg>Texto</button>
     </div>
   </div>
@@ -263,7 +266,7 @@ async function carregaLib(silent) {
     LIVROS = ri.ok ? await ri.json() : [];
     const fs = rf.ok ? await rf.json() : [];
     const nomes = fs.map(f => f.name);
-    FILA = fs.filter(f => (/\.(epub|pdf)$/i.test(f.name) || /\.falhou$/.test(f.name)) && (DEV === 'principal' ? f.name.split('__').length < 3 : f.name.startsWith(DEV + '__'))).map(f => ({nome: f.name, falhou: /\.falhou$/.test(f.name), errotxt: nomes.includes(f.name.replace(/\.falhou$/, '') + '.erro.txt') ? f.name.replace(/\.falhou$/, '') + '.erro.txt' : null}));
+    FILA = fs.filter(f => (/\.(epub|pdf|docx|txt|md|mobi|azw3|azw|fb2|url)$/i.test(f.name) || /\.falhou$/.test(f.name)) && (DEV === 'principal' ? f.name.split('__').length < 3 : f.name.startsWith(DEV + '__'))).map(f => ({nome: f.name, falhou: /\.falhou$/.test(f.name), errotxt: nomes.includes(f.name.replace(/\.falhou$/, '') + '.erro.txt') ? f.name.replace(/\.falhou$/, '') + '.erro.txt' : null}));
     LS.set('cache.lib', {LIVROS, FILA});
   } catch (e) { const c = LS.get('cache.lib', null); if (c) ({LIVROS, FILA} = c); if (!silent) toast('Sem conexão — mostrando o que está salvo') }
   renderLib();
@@ -277,7 +280,7 @@ async function renderLib() {
   if (!LIVROS.length && !filaVisivel.length) { g.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>Sua biblioteca está vazia</b>Toque em <b style="display:inline">Adicionar</b> para enviar um EPUB ou PDF.</div>`; return }
   let h = '';
   for (const f of filaVisivel) {
-    const nome = f.nome.replace(/\.(falhou)$/, '').replace(/^([^_]+__)+/, '').replace(/\.(epub|pdf)$/i, '').replace(/_/g, ' ');
+    const nome = f.nome.replace(/\.(falhou)$/, '').replace(/^([^_]+__)+/, '').replace(/\.(epub|pdf|docx|txt|md|mobi|azw3|azw|fb2|url)$/i, '').replace(/_/g, ' ');
     h += `<button class="card" data-fila="${esc(f.nome)}"><div class="cov" style="background:${grad(nome)}"><div class="gen">${esc(nome)}</div>
       <span class="chip ${f.falhou ? 'err' : ''}">${f.falhou ? 'Falhou' : '<span class="spin" style="width:10px;height:10px;border-width:2px"></span> Na fila'}</span></div><h3>${esc(nome)}</h3><p>${f.falhou ? 'Toque para ver o erro' : 'Preparando…'}</p></button>`;
   }
@@ -372,28 +375,53 @@ function ligaVozes(onSel) {
     prevAu.onended = prevAu.onpause = () => use.setAttribute('href', '#i-play');
   });
 }
-$('#fab').onclick = () => {
-  let arq = null, voz = PREFS.voz;
-  sheet(`<h2>Adicionar livro</h2>
-    <label class="file"><input type="file" accept=".epub,.pdf,application/epub+zip,application/pdf" hidden id="fi"><svg><use href="#i-book"/></svg>
-      <div class="grow"><b id="fn">Escolher EPUB ou PDF</b><small style="display:block;color:var(--tx2)" id="fsz">Do celular, Drive ou Downloads</small></div></label>
+/* ---------- adicionar: arquivo, link ou texto ---------- */
+const EXTS = /\.(epub|pdf|docx|txt|md|mobi|azw3|azw|fb2)$/i;
+function nomeSeguro(n) { return n.replace(EXTS, '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w-]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 70) || 'livro' }
+async function enviaEntrada(nome, ext, b64, voz, opts) {
+  const o = Object.entries(opts).filter(([, v]) => v).map(([k, v]) => k + '-' + v).join('.');
+  const path = `entrada/${DEV === 'principal' ? '' : DEV + '__'}${voz}__${o ? 'o-' + o + '__' : ''}${nomeSeguro(nome)}.${ext}`;
+  return gh('/contents/' + encodeURI(path), {method: 'PUT', body: JSON.stringify({message: 'novo: ' + nome, content: b64})});
+}
+const b64txt = t => btoa(unescape(encodeURIComponent(t)));
+function abreAdicionar(pre = {}) {
+  let arq = pre.arq || null, voz = PREFS.voz, aba = pre.url ? 'link' : pre.texto ? 'texto' : 'arquivo';
+  const dialOpts = VOZES.map(v => `<option value="${v.id}">${esc(v.nome)}</option>`).join('');
+  sheet(`<h2>Adicionar</h2>
+    <div class="pills" id="abas" style="margin-bottom:14px"><button data-a="arquivo">Arquivo</button><button data-a="link">Link</button><button data-a="texto">Colar texto</button></div>
+    <div data-p="arquivo"><label class="file"><input type="file" accept=".epub,.pdf,.docx,.txt,.md,.mobi,.azw3,.azw,.fb2" hidden id="fi"><svg><use href="#i-book"/></svg>
+      <div class="grow"><b id="fn">Escolher arquivo</b><small style="display:block;color:var(--tx2)" id="fsz">EPUB, PDF (inclusive escaneado), DOCX, TXT, MOBI, AZW3</small></div></label></div>
+    <div data-p="link"><input class="inp" id="url" type="url" placeholder="https://… (matéria, artigo, blog)"></div>
+    <div data-p="texto"><input class="inp" id="ttl" placeholder="Título" style="margin-bottom:8px"><textarea class="inp" id="txa" rows="6" placeholder="Cole o texto aqui"></textarea></div>
     <span class="lab">Voz da narração</span>${vozesHTML(voz)}
-    <button class="btn" id="env" disabled>Converter em audiolivro</button>
-    <p class="note">A conversão leva alguns minutos e acontece mesmo com o app fechado. Os capítulos ficam disponíveis conforme ficam prontos.</p>`);
+    <span class="lab">Voz nos diálogos (falas com — ou aspas)</span>
+    <select class="inp" id="dvz"><option value="">Mesma voz do narrador</option>${dialOpts}</select>
+    <label class="row" style="border:0;padding:12px 2px"><input type="checkbox" id="acad"><div class="grow">Artigo científico<small>Remove referências [1], citações, legendas e a bibliografia (PDF já faz sozinho)</small></div></label>
+    <button class="btn" id="env">Converter em audiolivro</button>
+    <p class="note">Livros em inglês ou espanhol ganham voz no idioma certo automaticamente. A conversão continua mesmo com o app fechado.</p>`);
+  const mostra = a => { aba = a; $('#sh').querySelectorAll('[data-a]').forEach(b => b.classList.toggle('sel', b.dataset.a === a)); $('#sh').querySelectorAll('[data-p]').forEach(d => d.classList.toggle('hide', d.dataset.p !== a)) };
+  $('#sh').querySelectorAll('[data-a]').forEach(b => b.onclick = () => mostra(b.dataset.a)); mostra(aba);
+  const mostraArq = () => { if (!arq) return; $('#fn').textContent = arq.name; $('#fsz').textContent = (arq.size / 1048576).toFixed(1) + ' MB' };
+  mostraArq(); if (pre.url) $('#url').value = pre.url; if (pre.texto) { $('#txa').value = pre.texto; $('#ttl').value = pre.titulo || '' }
   ligaVozes(v => voz = v);
-  $('#fi').onchange = e => { arq = e.target.files[0]; if (!arq) return; $('#fn').textContent = arq.name; $('#fsz').textContent = (arq.size / 1048576).toFixed(1) + ' MB'; $('#env').disabled = false };
+  $('#fi').onchange = e => { arq = e.target.files[0]; mostraArq() };
   $('#env').onclick = async () => {
-    if (arq.size > 70 * 1048576) return toast('Arquivo grande demais (máx. 70 MB)');
-    const b = $('#env'); b.disabled = true; b.innerHTML = '<span class="spin"></span> Enviando…';
-    PREFS.voz = voz; savePrefs();
-    const base = arq.name.replace(/\.(epub|pdf)$/i, '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w-]+/g, '_').slice(0, 80);
-    const ext = arq.name.match(/\.(epub|pdf)$/i)?.[1].toLowerCase() || 'epub';
-    const b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result.split(',')[1]); fr.readAsDataURL(arq) });
-    const r = await gh(`/contents/entrada/${DEV === 'principal' ? '' : DEV + '__'}${voz}__${base}.${ext}`, {method: 'PUT', body: JSON.stringify({message: 'novo livro: ' + arq.name, content: b64})});
+    const opts = {d: $('#dvz').value, a: $('#acad').checked ? '1' : ''}, b = $('#env');
+    let nome, ext, b64;
+    if (aba === 'arquivo') { if (!arq) return toast('Escolha um arquivo');
+      if (!EXTS.test(arq.name)) return toast('Formato não suportado'); if (arq.size > 70 * 1048576) return toast('Arquivo grande demais (máx. 70 MB)');
+      nome = arq.name; ext = arq.name.match(EXTS)[1].toLowerCase();
+      b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result.split(',')[1]); fr.readAsDataURL(arq) }) }
+    else if (aba === 'link') { const u = $('#url').value.trim(); if (!/^https?:\/\//.test(u)) return toast('Cole um link começando com http');
+      nome = new URL(u).hostname.replace(/^www\./, '') + '_' + (new URL(u).pathname.split('/').filter(Boolean).pop() || ''); ext = 'url'; b64 = b64txt(u) }
+    else { const t = $('#txa').value.trim(); if (t.length < 20) return toast('Cole um texto maior'); nome = $('#ttl').value.trim() || t.slice(0, 40); ext = 'txt'; b64 = b64txt(t) }
+    b.disabled = true; b.innerHTML = '<span class="spin"></span> Enviando…'; PREFS.voz = voz; savePrefs();
+    const r = await enviaEntrada(nome, ext, b64, voz, opts);
     if (r.ok) { closeSheet(); toast('Enviado! A conversão já começou.'); setTimeout(carregaLib, 1500) }
-    else { b.disabled = false; b.textContent = 'Tentar de novo'; toast('Erro ao enviar (' + r.status + ')' + (r.status === 422 ? ': já existe um arquivo com esse nome' : '')) }
+    else { b.disabled = false; b.textContent = 'Tentar de novo'; toast('Erro ao enviar (' + r.status + ')' + (r.status === 422 ? ': já existe um com esse nome' : '')) }
   };
-};
+}
+$('#fab').onclick = () => abreAdicionar();
 
 /* ---------- player ---------- */
 async function abreLivro(id, autoplay = true) {
@@ -436,7 +464,7 @@ function renderTexto(d) {
     for (let k = 0; k < w.length; k += 3) {
       if (w[k] > pos) el.append(p.t.slice(pos, w[k]));
       const s = document.createElement('w'); s.textContent = p.t.slice(w[k], w[k + 1]); s.dataset.i = words.length;
-      el.append(s); words.push({t: w[k + 2], el: s, p: i}); pos = w[k + 1];
+      el.append(s); words.push({t: w[k + 2], el: s, p: i, c: w[k]}); pos = w[k + 1];
     }
     if (pos < p.t.length) el.append(p.t.slice(pos));
     paras.push({s: p.s, e: p.e, el}); frag.append(el);
@@ -472,7 +500,7 @@ async function proximo(auto) { if (!cur) return; const m = cur.livro;
   if (cur.cap + 1 < m.capitulos.length) return abreCap(m, cur.cap + 1, 0, true);
   const l = LIVROS.find(x => x.id === m.id);
   if (m.pronto < m.total || (l && l.pronto < l.total)) { const nm = await livroMeta(l || m, true); if (nm.capitulos.length > cur.cap + 1) return abreCap(nm, cur.cap + 1, 0, true); toast('Próximo capítulo ainda está sendo convertido') }
-  else if (auto) { salvaPos(); toast('Fim do livro 🎉') } }
+  else if (auto) { salvaPos(); marcaConcluido(m.id); toast('Fim do livro 🎉') } }
 $('#bpp').onclick = $('#mpp').onclick = e => { e.stopPropagation(); if (!au.src) return; au.paused ? au.play() : au.pause() };
 $('#bb').onclick = () => { au.currentTime = Math.max(0, au.currentTime - 15) };
 $('#bf').onclick = () => { au.currentTime = Math.min(au.duration - .1, au.currentTime + 15) };
@@ -544,6 +572,173 @@ async function mediaSession() { if (!('mediaSession' in navigator) || !cur) retu
   for (const [k, f] of Object.entries(h)) try { navigator.mediaSession.setActionHandler(k, f) } catch {} }
 function posState() { try { if (au.duration) navigator.mediaSession.setPositionState({duration: au.duration, playbackRate: au.playbackRate, position: au.currentTime}) } catch {} }
 
+/* ================= EXTRAS ================= */
+const hoje = () => new Date().toLocaleDateString('sv');
+const dirty = () => { LS.set('sync.ts', Date.now()); clearTimeout(dirty._t); dirty._t = setTimeout(sobeBackup, 60000) };
+
+/* --- velocidade por livro --- */
+const _setSpeed = setSpeed;
+setSpeed = s => { _setSpeed(s); if (cur) { LS.set('speed.' + cur.livro.id, s); dirty() } };
+const _abreCap = abreCap;
+abreCap = async (m, n, t, play) => { const sp = LS.get('speed.' + m.id, null); if (sp) _setSpeed(sp); await _abreCap(m, n, t, play); pintaMarcas() };
+
+/* --- estatísticas --- */
+let tickT = 0;
+setInterval(() => { if (!au.paused && cur) { const st = LS.get('stats', {d: {}, fim: {}}); st.d[hoje()] = (st.d[hoje()] || 0) + 5; LS.set('stats', st); if (++tickT % 12 === 0) dirty() } }, 5000);
+function marcaConcluido(id) { const st = LS.get('stats', {d: {}, fim: {}}); st.fim[id] = st.fim[id] || hoje(); LS.set('stats', st); dirty() }
+function abreStats() {
+  const st = LS.get('stats', {d: {}, fim: {}}), dias = [];
+  for (let i = 6; i >= 0; i--) { const d = new Date(Date.now() - i * 864e5).toLocaleDateString('sv'); dias.push([d, st.d[d] || 0]) }
+  let seq = 0; for (let i = 0; ; i++) { const d = new Date(Date.now() - i * 864e5).toLocaleDateString('sv'); if (st.d[d] >= 60) seq++; else if (i > 0) break; if (i > 3650) break }
+  const total = Object.values(st.d).reduce((a, b) => a + b, 0), max = Math.max(1800, ...dias.map(x => x[1])), ano = String(new Date().getFullYear());
+  const fins = Object.entries(st.fim).filter(([, d]) => d.startsWith(ano));
+  const box = (v, l) => `<div style="background:var(--bg3);border-radius:14px;padding:12px;flex:1"><b style="font-size:22px">${v}</b><small style="display:block;color:var(--tx2)">${l}</small></div>`;
+  sheet(`<h2>Estatísticas</h2><div style="display:flex;gap:10px">${box(fmtDur(st.d[hoje()] || 0), 'hoje')}${box(seq + (seq === 1 ? ' dia' : ' dias'), 'sequência')}</div>
+    <div style="display:flex;gap:10px;margin-top:10px">${box(Math.round(total / 3600) + ' h', 'total ouvido')}${box(fins.length, 'concluídos em ' + ano)}</div>
+    <span class="lab">Últimos 7 dias</span><div style="display:flex;gap:8px;align-items:flex-end;height:120px">${dias.map(([d, v]) => `<div style="flex:1;text-align:center"><div style="height:${Math.max(3, v / max * 100)}px;background:var(--hl);border-radius:6px"></div><small style="color:var(--tx2);font-size:11px">${'DSTQQSS'[new Date(d + 'T12:00').getDay()]}</small></div>`).join('')}</div>
+    ${fins.length ? `<span class="lab">Concluídos</span>${fins.map(([id, d]) => `<div class="row"><div class="grow">${esc(LIVROS.find(l => l.id === id)?.titulo || id)}<small>${d.split('-').reverse().join('/')}</small></div></div>`).join('')}` : ''}`);
+}
+
+/* --- coleções e filtros --- */
+let FILTRO = LS.get('filtro', 'todos');
+const colecoes = () => LS.get('colecoes', {});
+function chips() {
+  const cs = Object.keys(colecoes()), opts = [['todos', 'Todos'], ['ouvindo', 'Ouvindo'], ['novos', 'Não iniciados'], ['fim', 'Concluídos'], ...cs.map(c => ['c:' + c, c])];
+  $('#chips').innerHTML = opts.map(([k, n]) => `<button data-f="${esc(k)}" class="${FILTRO === k ? 'sel' : ''}">${esc(n)}</button>`).join('');
+  $('#chips').querySelectorAll('[data-f]').forEach(b => b.onclick = () => { FILTRO = b.dataset.f; LS.set('filtro', FILTRO); renderLib() });
+}
+function passaFiltro(l) { const p = pct(l);
+  if (FILTRO === 'ouvindo') return p > 0 && p < 99; if (FILTRO === 'novos') return !p; if (FILTRO === 'fim') return p >= 99;
+  if (FILTRO.startsWith('c:')) return (colecoes()[FILTRO.slice(2)] || []).includes(l.id); return true }
+const _renderLib = renderLib;
+renderLib = async () => { chips(); const todos = LIVROS; LIVROS = todos.filter(passaFiltro); try { await _renderLib() } finally { LIVROS = todos } };
+function abreColecoes(id) {
+  const cs = colecoes();
+  sheet(`<h2>Coleções</h2>${Object.keys(cs).map(c => `<label class="row"><input type="checkbox" data-c="${esc(c)}" ${cs[c].includes(id) ? 'checked' : ''}><div class="grow">${esc(c)}<small>${cs[c].length} livros</small></div><button data-x="${esc(c)}" style="color:var(--tx3)">excluir</button></label>`).join('') || '<p class="note">Nenhuma coleção ainda.</p>'}
+    <div style="display:flex;gap:8px;margin-top:12px"><input class="inp" id="nc" placeholder="Nova coleção (ex.: Residência)"><button class="btn" style="width:auto;margin:0;padding:0 18px" id="ncb">Criar</button></div>`);
+  const salva = x => { LS.set('colecoes', x); dirty(); renderLib() };
+  $('#sh').querySelectorAll('[data-c]').forEach(c => c.onchange = () => { const x = colecoes(), n = c.dataset.c; x[n] = c.checked ? [...new Set([...x[n], id])] : x[n].filter(i => i !== id); salva(x) });
+  $('#sh').querySelectorAll('[data-x]').forEach(b => b.onclick = e => { e.preventDefault(); const x = colecoes(); delete x[b.dataset.x]; if (FILTRO === 'c:' + b.dataset.x) FILTRO = 'todos'; salva(x); abreColecoes(id) });
+  $('#ncb').onclick = () => { const n = $('#nc').value.trim(); if (!n) return; const x = colecoes(); x[n] = [...new Set([...(x[n] || []), id])]; salva(x); abreColecoes(id) };
+}
+
+/* --- menu do livro: extras --- */
+const _menuLivro = menuLivro;
+menuLivro = id => { _menuLivro(id); const l = LIVROS.find(x => x.id === id) || cur?.livro;
+  $('#m-dl').insertAdjacentHTML('afterend', `<button class="row" id="m-col"><svg><use href="#i-list"/></svg><div class="grow">Coleções…</div></button>
+    <button class="row" id="m-mk"><svg><use href="#i-book"/></svg><div class="grow">Marcadores e destaques<small>${(LS.get('marcas.' + id, [])).length} salvos</small></div></button>
+    <button class="row" id="m-exp"><svg><use href="#i-dl"/></svg><div class="grow">Exportar MP3<small id="m-exps">Um arquivo com o livro inteiro, para qualquer player</small></div></button>`);
+  $('#m-col').onclick = () => abreColecoes(id); $('#m-mk').onclick = () => abreMarcas(id); $('#m-exp').onclick = () => exportaMP3(l, $('#m-exps')) };
+async function exportaMP3(l, el) {
+  const m = await livroMeta(l, true), partes = []; let i = 0;
+  try { for (const c of m.capitulos) { el.textContent = `Preparando ${++i}/${m.capitulos.length}…`; partes.push(await cached(`${BASE}/${l.id}/${c.arq}.mp3`, m.criado)) } }
+  catch (e) { el.textContent = 'Erro: ' + e.message; return }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(partes, {type: 'audio/mpeg'})); a.download = nomeSeguro(m.titulo) + '.mp3'; a.click();
+  el.textContent = 'Pronto ✓ (veja em Downloads)' }
+
+/* --- marcadores / destaques --- */
+function fraseDe(wi) { const w = words[wi], p = paras[w.p], txt = p.el.textContent; let a = 0, b = txt.length;
+  for (const m of txt.matchAll(/[^.!?…]+[.!?…]*["”»’)]*\s*/g)) { if (m.index <= w.c && w.c < m.index + m[0].length) { a = m.index; b = m.index + m[0].length; break } }
+  let w0 = wi, w1 = wi; while (w0 > 0 && words[w0 - 1].p === w.p && words[w0 - 1].c >= a) w0--; while (w1 < words.length - 1 && words[w1 + 1].p === w.p && words[w1 + 1].c < b) w1++;
+  return {w0, w1, txt: txt.slice(a, b).trim()} }
+function pintaMarcas() { if (!cur) return; document.querySelectorAll('#txt w.mk').forEach(e => e.classList.remove('mk'));
+  for (const mk of LS.get('marcas.' + cur.livro.id, [])) if (mk.cap === cur.cap) for (let i = mk.w0; i <= mk.w1 && i < words.length; i++) words[i].el.classList.add('mk') }
+let lpW; $('#txt').addEventListener('pointerdown', e => { const w = e.target.closest('w'); if (!w) return; lpW = setTimeout(() => { lpW = 'ok'; marcaFrase(+w.dataset.i) }, 520) });
+['pointerup', 'pointercancel'].forEach(ev => $('#txt').addEventListener(ev, () => { if (lpW !== 'ok') clearTimeout(lpW) }));
+$('#txt').addEventListener('pointermove', e => { if (Math.abs(e.movementY) > 2 && lpW !== 'ok') clearTimeout(lpW) });
+$('#txt').addEventListener('click', e => { if (lpW === 'ok') { e.stopImmediatePropagation(); lpW = null } }, true);
+$('#txt').addEventListener('contextmenu', e => e.preventDefault());
+function marcaFrase(wi) { const f = fraseDe(wi);
+  sheet(`<h2>Destacar</h2><p style="font:17px/1.5 var(--ff);background:var(--hlbg);padding:10px 12px;border-radius:10px">${esc(f.txt)}</p>
+    <input class="inp" id="mnota" placeholder="Nota (opcional)"><button class="btn" id="msave">Salvar destaque</button>`);
+  $('#msave').onclick = () => { const id = cur.livro.id, l = LS.get('marcas.' + id, []);
+    l.push({cap: cur.cap, w0: f.w0, w1: f.w1, t: words[f.w0].t, txt: f.txt, nota: $('#mnota').value.trim(), ts: Date.now(), capt: cur.livro.capitulos[cur.cap].titulo});
+    LS.set('marcas.' + id, l); dirty(); pintaMarcas(); closeSheet(); toast('Destaque salvo') } }
+function abreMarcas(id) { const l = LS.get('marcas.' + id, []), m = metas[id] || LS.get('meta.' + id, {});
+  sheet(`<h2>Marcadores e destaques</h2>${l.length ? l.map((k, i) => `<div class="row"><button class="grow" style="text-align:left" data-j="${i}"><span style="font-family:var(--ff)">“${esc(k.txt)}”</span>${k.nota ? `<small style="color:var(--tx)">📝 ${esc(k.nota)}</small>` : ''}<small>${esc(k.capt || 'Cap. ' + (k.cap + 1))} · ${fmt(k.t)}</small></button><button data-d="${i}" style="color:var(--tx3);padding:8px">✕</button></div>`).join('')
+    + `<button class="btn" id="mexp">Exportar (copiar / compartilhar)</button>` : '<p class="note">Segure o dedo numa frase durante a leitura para destacar.</p>'}`);
+  $('#sh').querySelectorAll('[data-j]').forEach(b => b.onclick = async () => { const k = l[+b.dataset.j]; closeSheet(); if (cur?.livro.id !== id) await abreLivro(id, false); else $('#pl').classList.add('on'); await abreCap(cur.livro, k.cap, k.t, true) });
+  $('#sh').querySelectorAll('[data-d]').forEach(b => b.onclick = () => { l.splice(+b.dataset.d, 1); LS.set('marcas.' + id, l); dirty(); pintaMarcas(); abreMarcas(id) });
+  $('#mexp') && ($('#mexp').onclick = async () => { const md = `# ${m.titulo || id}\n\n` + l.map(k => `> ${k.txt}\n${k.nota ? '\n' + k.nota + '\n' : ''}\n— ${k.capt || ''}\n`).join('\n');
+    if (navigator.share) navigator.share({title: m.titulo, text: md}).catch(() => {}); else { await navigator.clipboard.writeText(md); toast('Copiado — cole no Notion') } }) }
+$('#tmk').onclick = () => abreMarcas(cur.livro.id);
+
+/* --- busca no livro --- */
+$('#psrch').onclick = () => { const m = cur.livro;
+  sheet(`<h2>Buscar no livro</h2><input class="inp" id="q" placeholder="Palavra ou frase" enterkeyhint="search"><div id="qr" style="margin-top:8px"></div>`);
+  $('#q').focus(); const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  $('#q').onkeydown = async e => { if (e.key !== 'Enter') return; const q = norm($('#q').value.trim()); if (q.length < 2) return; const out = $('#qr'); out.innerHTML = '<p class="note"><span class="spin"></span> Buscando…</p>'; const res = [];
+    for (const [n, c] of m.capitulos.entries()) { let d; try { d = await cached(`${BASE}/${m.id}/${c.arq}.json`, m.criado, 'json') } catch { continue }
+      for (const p of d.p) { const k = norm(p.t).indexOf(q); if (k < 0) continue; let t = p.s; for (let i = 0; i < p.w.length; i += 3) if (p.w[i] >= k) { t = p.w[i + 2]; break }
+        res.push({n, t, snip: p.t.slice(Math.max(0, k - 50), k + q.length + 60), tit: c.titulo}); if (res.length >= 60) break } if (res.length >= 60) break }
+    out.innerHTML = res.length ? res.map((r, i) => `<button class="row" data-r="${i}"><div class="grow"><span style="font-family:var(--ff)">…${esc(r.snip)}…</span><small>${esc(r.tit)} · ${fmt(r.t)}</small></div></button>`).join('') : '<p class="note">Nada encontrado.</p>';
+    out.querySelectorAll('[data-r]').forEach(b => b.onclick = () => { const r = res[+b.dataset.r]; closeSheet(); abreCap(m, r.n, r.t, true) }) } };
+
+/* --- ouvir a partir de onde estou lendo --- */
+$('#back2').insertAdjacentHTML('afterend', '<button id="daqui" class="hide" style="position:absolute;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 236px);background:var(--bg3);color:var(--tx);font-weight:600;font-size:13px;padding:9px 16px;border-radius:99px;box-shadow:0 6px 20px rgba(0,0,0,.35)">▶ Ouvir a partir daqui</button>');
+const visivel = () => { const box = $('#txt').getBoundingClientRect(); return words.find(w => { const r = w.el.getBoundingClientRect(); return r.top >= box.top + 10 && r.bottom < box.bottom }) };
+new MutationObserver(() => $('#daqui').classList.toggle('hide', $('#back2').classList.contains('hide'))).observe($('#back2'), {attributes: true});
+$('#daqui').onclick = () => { const w = visivel(); if (w) au.currentTime = w.t + .01; autoScroll = true; $('#back2').classList.add('hide'); au.play(); sync(true) };
+
+/* --- fim do livro → estatística --- */
+au.addEventListener('ended', () => { if (cur && cur.cap + 1 >= cur.livro.total && cur.livro.pronto >= cur.livro.total) marcaConcluido(cur.livro.id) });
+
+/* --- backup / código do aparelho --- */
+const chavesSync = () => Object.keys(localStorage).filter(k => /^ouvir\.(pos|marcas|speed)\.|^ouvir\.(colecoes|stats)$/.test(k));
+async function sobeBackup() { try { const dados = {ts: LS.get('sync.ts', Date.now()), k: {}}; chavesSync().forEach(k => dados.k[k] = localStorage.getItem(k));
+  const p = `/contents/progresso/${DEV}.json`, r = await gh(p), sha = r.ok ? (await r.json()).sha : undefined;
+  await gh(p, {method: 'PUT', body: JSON.stringify({message: 'progresso ' + DEV, content: b64txt(JSON.stringify(dados)), sha})}) } catch {} }
+async function desceBackup() { try { const r = await raw(`progresso/${DEV}.json`); if (!r.ok) return; const d = await r.json();
+  if (d.ts > LS.get('sync.ts', 0)) { for (const [k, v] of Object.entries(d.k)) localStorage.setItem(k, v); LS.set('sync.ts', d.ts); renderLib() } } catch {} }
+document.addEventListener('visibilitychange', () => { if (document.hidden && dirty._t) { clearTimeout(dirty._t); dirty._t = null; sobeBackup() } });
+const _salvaPos = salvaPos; salvaPos = () => { _salvaPos(); if (!salvaPos._n || Date.now() - salvaPos._n > 120000) { salvaPos._n = Date.now(); dirty() } };
+
+/* --- dicionário de pronúncia --- */
+async function abrePronuncia() { let dic = {};
+  try { const r = await raw(`dicionarios/${DEV}.json`); if (r.ok) dic = await r.json() } catch {}
+  const desenha = () => { sheet(`<h2>Pronúncia</h2><p class="note" style="margin-top:-6px">Ensine como ler siglas e palavras. Vale para os próximos livros convertidos.</p>
+    ${Object.entries(dic).map(([k, v]) => `<div class="row"><div class="grow"><b>${esc(k)}</b> → ${esc(v)}</div><button data-x="${esc(k)}" style="color:var(--tx3)">✕</button></div>`).join('')}
+    <div style="display:flex;gap:6px;margin-top:12px"><input class="inp" id="pk" placeholder="TC"><input class="inp" id="pv" placeholder="tê cê"><button class="btn" style="width:auto;margin:0;padding:0 16px" id="pa">+</button></div>
+    <button class="btn" id="ps">Salvar</button>`);
+    $('#sh').querySelectorAll('[data-x]').forEach(b => b.onclick = () => { delete dic[b.dataset.x]; desenha() });
+    $('#pa').onclick = () => { const k = $('#pk').value.trim(), v = $('#pv').value.trim(); if (k && v) { dic[k] = v; desenha() } };
+    $('#ps').onclick = async () => { const p = `/contents/dicionarios/${DEV}.json`, r = await gh(p), sha = r.ok ? (await r.json()).sha : undefined;
+      const w = await gh(p, {method: 'PUT', body: JSON.stringify({message: 'pronúncia', content: b64txt(JSON.stringify(dic, null, 1)), sha})}); toast(w.ok ? 'Salvo ✓' : 'Erro ao salvar'); if (w.ok) closeSheet() } };
+  desenha() }
+
+/* --- avisos (ntfy) --- */
+async function abreAvisos() { const h = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('ouvir-avisos:' + DEV)))].map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 20), top = 'ouvir-' + h;
+  sheet(`<h2>Avisos no celular</h2><p class="note" style="margin-top:-6px">Receba uma notificação quando o 1º capítulo e o livro inteiro ficarem prontos. Grátis, pelo app <b>ntfy</b>.</p>
+    <ol style="color:var(--tx2);font-size:14px;padding-left:20px"><li>Instale o <b>ntfy</b> (<a style="color:var(--hl)" href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank">Android</a> · <a style="color:var(--hl)" href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank">iPhone</a>)</li>
+    <li>No ntfy, toque em <b>+</b> e assine o tópico abaixo</li></ol>
+    <div class="inp" style="font-family:monospace;user-select:all">${top}</div><button class="btn" id="tcp">Copiar tópico</button>
+    <a class="btn2" style="text-align:center;text-decoration:none;color:inherit" href="ntfy://ntfy.sh/${top}">Abrir no ntfy</a>`);
+  $('#tcp').onclick = async () => { try { await navigator.clipboard.writeText(top); toast('Copiado') } catch { prompt('Tópico:', top) } } }
+
+/* --- ajustes: novos itens --- */
+const _bset = $('#bset').onclick;
+$('#bset').onclick = async () => { await _bset();
+  $('#sair').insertAdjacentHTML('beforebegin', `<button class="row" id="a-pr"><div class="grow">🗣️ Pronúncia de siglas e palavras</div></button>
+    <button class="row" id="a-av"><div class="grow">🔔 Avisos quando o livro ficar pronto</div></button>
+    <button class="row" id="a-cd"><div class="grow">🔑 Código deste aparelho<small>Para recuperar seus livros ou usar no PC</small></div></button>`);
+  $('#a-pr').onclick = abrePronuncia; $('#a-av').onclick = abreAvisos;
+  $('#a-cd').onclick = () => { sheet(`<h2>Código do aparelho</h2><p class="note" style="margin-top:-6px">Guarde este código. Em outro aparelho (ou se reinstalar), digite-o para abrir esta mesma biblioteca, com progresso e destaques.</p>
+    <div class="inp" style="font-family:monospace;user-select:all;word-break:break-all">${DEV}</div><button class="btn" id="cdc">Copiar</button>
+    <span class="lab">Usar a biblioteca de outro aparelho</span><input class="inp" id="cdi" placeholder="Cole o código"><button class="btn2" id="cdu">Usar este código</button>`);
+    $('#cdc').onclick = async () => { try { await navigator.clipboard.writeText(DEV); toast('Copiado') } catch { prompt('Código:', DEV) } };
+    $('#cdu').onclick = () => { const c = $('#cdi').value.trim().toLowerCase(); if (!/^[a-z0-9-]{4,40}$/.test(c)) return toast('Código inválido');
+      if (!confirm('Trocar para a biblioteca desse código?')) return; LS.set('dev', c); LS.set('sync.ts', 0); location.reload() } } };
+$('#bstat').onclick = abreStats;
+
+/* --- receber arquivo/link compartilhado (Android) --- */
+async function verificaCompartilhado() {
+  if (!location.search.includes('share=1')) return; history.replaceState(null, '', location.pathname);
+  try { const c = await caches.open('ouvir-share'), r = await c.match('/share-meta'); if (!r) return; const meta = await r.json(); let arq = null;
+    const f = await c.match('/share-file'); if (f) arq = new File([await f.blob()], meta.nome || 'arquivo', {type: f.headers.get('content-type') || ''});
+    await c.delete('/share-meta'); await c.delete('/share-file');
+    const url = (meta.url || (meta.text || '').match(/https?:\/\/\S+/)?.[0] || '').trim();
+    abreAdicionar(arq ? {arq} : url ? {url} : {texto: meta.text, titulo: meta.title}) } catch {} }
+
 /* ---------- início ---------- */
 async function inicia() {
   applyPrefs(); setSpeed(PREFS.speed);
@@ -554,7 +749,8 @@ async function inicia() {
   if (!TOKEN) { $('#setup').classList.remove('hide'); return }
   $('#lib').classList.remove('hide'); $('#fab').classList.remove('hide');
   const c = LS.get('cache.lib', null); if (c) { ({LIVROS, FILA} = c); renderLib() }
-  await Promise.all([carregaLib(), carregaVozes()]);
+  await Promise.all([carregaLib(), carregaVozes(), desceBackup()]);
+  verificaCompartilhado();
   const ult = LS.get('ultimo', null), l = ult && LIVROS.find(x => x.id === ult);
   if (l) { const m = await livroMeta(l), p = prog(l.id) || {cap: 0, t: 0}; if (m?.capitulos.length) abreCap(m, Math.min(p.cap, m.capitulos.length - 1), p.t, false) }
 }
