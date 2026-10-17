@@ -58,6 +58,11 @@ svg{width:24px;height:24px;fill:currentColor;flex:none}
 /* ---------- player ---------- */
 #pl{position:fixed;inset:0;background:var(--bg);z-index:10;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .32s cubic-bezier(.2,.8,.2,1)}
 #pl.on{transform:none}
+#pl .ph,#pl .pc{transition:transform .25s,opacity .25s}
+#pl.imersivo .ph{transform:translateY(-100%);opacity:0;pointer-events:none;position:absolute;left:0;right:0;top:0;z-index:2}
+#pl.imersivo .pc{transform:translateY(100%);opacity:0;pointer-events:none;position:absolute;left:0;right:0;bottom:0}
+#pl.imersivo #back2,#pl.imersivo #daqui{display:none}
+#pl.imersivo #txt{padding-top:calc(env(safe-area-inset-top) + 20px)}
 .ph{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 8px) 10px 8px}
 .ph .tt{flex:1;min-width:0;text-align:center}
 .ph .tt b,.ph .tt span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -284,6 +289,9 @@ async function carregaLib(silent) {
   try {
     const [ri, rf] = await Promise.all([raw(BASE + '/index.json'), gh('/contents/entrada')]);
     LIVROS = ri.ok ? await ri.json() : [];
+    const apag = LS.get('apagados', {}), agora = Date.now();
+    for (const id in apag) if (agora - apag[id] > 30 * 60000 || !LIVROS.some(l => l.id === id)) delete apag[id];
+    LS.set('apagados', apag); LIVROS = LIVROS.filter(l => !apag[l.id]);
     const fs = rf.ok ? await rf.json() : [];
     const nomes = fs.map(f => f.name);
     FILA = fs.filter(f => (/\.(epub|pdf|docx|txt|md|mobi|azw3|azw|fb2|url)$/i.test(f.name) || /\.falhou$/.test(f.name)) && (DEV === 'principal' ? VOZES.some(v => f.name.startsWith(v.id + '__')) || f.name.split('__').length < 3 : f.name.startsWith(DEV + '__'))).map(f => ({nome: f.name, falhou: /\.falhou$/.test(f.name), errotxt: nomes.includes(f.name.replace(/\.falhou$/, '') + '.erro.txt') ? f.name.replace(/\.falhou$/, '') + '.erro.txt' : null}));
@@ -348,7 +356,7 @@ function menuLivro(id) {
   $('#m-del').onclick = async () => { if (!confirm(`Apagar "${l.titulo}" da biblioteca?`)) return; closeSheet();
     const body = btoa(unescape(encodeURIComponent(JSON.stringify({id, dev: DEV}))));
     await gh(`/contents/entrada/apagar-${DEV}--${encodeURIComponent(id)}.json`, {method: 'PUT', body: JSON.stringify({message: 'apagar ' + id, content: body})});
-    LIVROS = LIVROS.filter(x => x.id !== id); renderLib(); toast('Livro será apagado em instantes') };
+    { const a = LS.get('apagados', {}); a[id] = Date.now(); LS.set('apagados', a) } LS.set('pos.' + id, null); if (cur?.livro.id === id) { au.pause(); cur = null; LS.set('ultimo', null); renderMini() } LIVROS = LIVROS.filter(x => x.id !== id); renderLib(); toast('Livro será apagado em instantes') };
 }
 const metas = {};
 async function livroMeta(l, fresh) {
@@ -367,8 +375,15 @@ async function baixaLivro(l, el) {
 }
 
 /* ---------- folhas ---------- */
-function sheet(html) { $('#sh').innerHTML = html; $('#sh').scrollTop = 0; $('#sh').classList.add('on'); $('#veil').classList.add('on') }
-function closeSheet() { $('#sh').classList.remove('on'); $('#veil').classList.remove('on'); prevAu.pause() }
+let ignoraPop = 0;
+function sheet(html) { const sh = $('#sh'); if (!sh.classList.contains('on')) history.pushState({sh: 1}, ''); sh.innerHTML = html; sh.scrollTop = 0; sh.style.transform = ''; sh.classList.add('on'); $('#veil').classList.add('on') }
+function escondeSheet() { $('#sh').classList.remove('on'); $('#sh').style.transform = ''; $('#veil').classList.remove('on'); prevAu.pause() }
+function closeSheet() { if (!$('#sh').classList.contains('on')) return; escondeSheet(); if (history.state?.sh) { ignoraPop++; history.back() } }
+/* arrastar a folha para baixo fecha */
+(() => { const sh = $('#sh'); let y0 = null, dy = 0;
+  sh.addEventListener('touchstart', e => { y0 = sh.scrollTop <= 0 ? e.touches[0].clientY : null; dy = 0 }, {passive: true});
+  sh.addEventListener('touchmove', e => { if (y0 == null) return; dy = e.touches[0].clientY - y0; if (dy > 0) { sh.style.transition = 'none'; sh.style.transform = `translateY(${dy}px)` } }, {passive: true});
+  sh.addEventListener('touchend', () => { if (y0 == null) return; sh.style.transition = ''; if (dy > 90) closeSheet(); else sh.style.transform = ''; y0 = null }); })();
 $('#veil').onclick = closeSheet;
 
 /* ---------- vozes / envio ---------- */
@@ -454,7 +469,7 @@ async function abreLivro(id, autoplay = true) {
 }
 function fechaPlayer() { $('#pl').classList.remove('on'); renderMini() }
 $('#pclose').onclick = () => history.back();
-addEventListener('popstate', () => { if ($('#sh').classList.contains('on')) closeSheet(); else if ($('#pl').classList.contains('on')) fechaPlayer() });
+addEventListener('popstate', () => { if (ignoraPop) { ignoraPop--; return } if ($('#sh').classList.contains('on')) escondeSheet(); else if ($('#pl').classList.contains('on')) fechaPlayer() });
 
 let words = [], wIdx = -1, paras = [], pIdx = -1, autoScroll = true, loadTok = 0;
 async function abreCap(m, n, t = 0, play = true) {
@@ -822,6 +837,8 @@ new MutationObserver(() => $('#pl').classList.contains('on') ? telaLigada() : te
 document.addEventListener('visibilitychange', () => { if (!document.hidden) telaLigada() });
 addEventListener('pointerdown', () => { if (!wakeLock) telaLigada() }, {passive: true});
 
+/* --- toque no espaço vazio: modo só texto --- */
+$('#txt').addEventListener('click', e => { if (e.target.closest('w') || $('#wmenu') || selando) return; $('#pl').classList.toggle('imersivo') });
 /* --- busca no livro --- */
 $('#psrch').onclick = () => { const m = cur.livro;
   sheet(`<h2>Buscar no livro</h2><input class="inp" id="q" placeholder="Palavra ou frase" enterkeyhint="search"><div id="qr" style="margin-top:8px"></div>`);
