@@ -309,7 +309,7 @@ async function carregaLib(silent) {
 async function renderLib() {
   const g = $('#grid');
   const nz = x => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  const filaVisivel = FILA.filter(f => { if (f.falhou) return true; const n = nz(f.nome.replace(/^([^_]+__)+/, '').replace(/\.[a-z0-9]+$/i, '')); return !LIVROS.some(l => nz(l.titulo) === n || nz(l.id) === n || (n.length > 6 && (nz(l.titulo).includes(n) || n.includes(nz(l.titulo))))) });
+  const filaVisivel = FILA.filter(f => { if (f.falhou) return true; return false; const n = nz(f.nome.replace(/^([^_]+__)+/, '').replace(/\.[a-z0-9]+$/i, '')); return !LIVROS.some(l => nz(l.titulo) === n || nz(l.id) === n || (n.length > 6 && (nz(l.titulo).includes(n) || n.includes(nz(l.titulo))))) });
   if (!LIVROS.length && !filaVisivel.length) { g.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>Sua biblioteca está vazia</b>Toque em <b style="display:inline">Adicionar</b> para enviar um EPUB ou PDF.</div>`; return }
   let h = '';
   for (const f of filaVisivel) {
@@ -318,9 +318,9 @@ async function renderLib() {
       <span class="chip ${f.falhou ? 'err' : ''}">${f.falhou ? 'Falhou' : '<span class="spin" style="width:10px;height:10px;border-width:2px"></span> Na fila'}</span></div><h3>${esc(nome)}</h3><p>${f.falhou ? 'Toque para ver o erro' : 'Preparando…'}</p></button>`;
   }
   for (const l of LIVROS) {
-    const p = pct(l), conv = l.pronto < l.total;
+    const p = pct(l), conv = l.pronto < l.total || l.preparando;
     h += `<button class="card" data-id="${esc(l.id)}"><div class="cov" style="background:${grad(l.titulo)}"><div class="gen">${esc(l.titulo)}</div>
-      ${conv ? `<span class="chip"><span class="spin" style="width:10px;height:10px;border-width:2px"></span> ${l.pronto}/${l.total}</span>` : ''}
+      ${conv ? `<span class="chip"><span class="spin" style="width:10px;height:10px;border-width:2px"></span> ${l.preparando || !l.total ? 'Preparando' : l.pronto + '/' + l.total}</span>` : ''}
       <span class="dot hide" data-off="${esc(l.id)}"><svg><use href="#i-ok"/></svg></span>
       ${p ? `<div class="bar"><i style="width:${p}%"></i></div>` : ''}</div>
       <h3>${esc(l.titulo)}</h3><p>${esc(l.autor || '')}${l.autor ? ' · ' : ''}${p >= 99 ? 'Concluído' : p ? Math.round(p) + '%' : fmtDur(l.duracao)}</p></button>`;
