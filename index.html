@@ -220,7 +220,7 @@ const API = 'https://api.github.com/repos/' + REPO;
 const $ = s => document.querySelector(s), au = $('#au');
 const LS = {get(k, d) { try { const v = localStorage.getItem('ouvir.' + k); return v == null ? d : JSON.parse(v) } catch { return d } },
             set(k, v) { try { localStorage.setItem('ouvir.' + k, JSON.stringify(v)) } catch {} }};
-const _K = ['__K1__', '__K2__', '__K3__'];
+const _K = ['==QUNVzRyUDSPJzbwk0RGRVQWFUMx8FdhB3XiVHa0l2Z', '==wdLJkb4lWezITVC9UQz0UUnJjSXJVRpJmSwVzbfV1S', '==QREdTSxFVTyVDWIdTSD1ENRR2VQFjYKhTWmNHVSh1M'];
 const APPKEY = (() => { try { return _K.map(x => atob(x.split('').reverse().join(''))).join('') } catch { return '' } })();
 let DEV = LS.get('dev', null);
 if (!DEV) { DEV = LS.get('token', '') ? 'principal' : (crypto.randomUUID?.() || Math.random().toString(36).slice(2) + Date.now().toString(36)).toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 36); LS.set('dev', DEV) }
