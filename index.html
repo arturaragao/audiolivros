@@ -112,6 +112,8 @@ svg{width:24px;height:24px;fill:currentColor;flex:none}
 .lab{font-size:13px;color:var(--tx2);margin:14px 0 6px;display:block}
 .inp{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--bg3);background:var(--bg);font-size:15px}
 .note{font-size:13px;color:var(--tx2);margin-top:8px}
+#ptr{position:fixed;top:calc(env(safe-area-inset-top) + 8px);left:50%;width:38px;height:38px;margin-left:-19px;border-radius:50%;background:var(--bg2);display:grid;place-items:center;z-index:30;box-shadow:0 4px 14px rgba(0,0,0,.35);transform:translateY(-70px);opacity:0}
+#ptr .spin{width:18px;height:18px}
 #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 100px);transform:translate(-50%,20px);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;font-weight:500;opacity:0;transition:.25s;z-index:40;max-width:90vw;text-align:center;pointer-events:none}
 #toast.on{opacity:1;transform:translate(-50%,0)}
 input[type=range].fsr{width:100%}
@@ -208,6 +210,7 @@ input[type=range].fsr{width:100%}
 
 <div id="veil"></div>
 <div class="sheet" id="sh"></div>
+<div id="ptr"><span class="spin"></span></div>
 <div id="toast"></div>
 <audio id="au" preload="auto"></audio>
 
@@ -544,6 +547,19 @@ addEventListener('appinstalled', () => { ['#binst', '#binst2'].forEach(x => $(x)
 const instalar = async () => { if (instEv) { instEv.prompt(); await instEv.userChoice; instEv = null } else toast('No Chrome: ⋮ › Adicionar à tela inicial › Instalar', 5000) };
 $('#binst').onclick = $('#binst2').onclick = instalar;
 if (!matchMedia('(display-mode: standalone)').matches) setTimeout(() => ['#binst', '#binst2'].forEach(x => $(x).classList.remove('hide')), 3000);
+/* puxar para atualizar */
+(() => { const ind = $('#ptr'), sp = ind.querySelector('.spin'); let y0 = null, dy = 0, busy = false;
+  const set = (d, anim) => { ind.style.transition = anim ? 'transform .25s, opacity .25s' : 'none'; ind.style.transform = `translateY(${Math.min(d, 90) - 70}px) rotate(${d * 3}deg)`; ind.style.opacity = Math.min(1, d / 60) };
+  addEventListener('touchstart', e => { if (busy || $('#lib').classList.contains('hide') || $('#pl').classList.contains('on') || $('#sh').classList.contains('on') || scrollY > 0) return y0 = null; y0 = e.touches[0].clientY; dy = 0; sp.style.animationPlayState = 'paused' }, {passive: true});
+  addEventListener('touchmove', e => { if (y0 == null) return; dy = Math.max(0, (e.touches[0].clientY - y0) * .5); set(dy) }, {passive: true});
+  addEventListener('touchend', async () => { if (y0 == null) return; y0 = null;
+    if (dy < 70) return set(0, true);
+    busy = true; set(80, true); sp.style.animationPlayState = 'running';
+    try { (await navigator.serviceWorker?.getRegistration())?.update() } catch {}
+    await Promise.all([carregaLib(), carregaVozes()]);
+    busy = false; set(0, true); toast('Atualizado') });
+})();
+navigator.serviceWorker?.addEventListener('controllerchange', () => { if (!au.src || au.paused) location.reload() });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 inicia();
 </script>
