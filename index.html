@@ -308,7 +308,8 @@ async function carregaLib(silent) {
 }
 async function renderLib() {
   const g = $('#grid');
-  const filaVisivel = FILA.filter(f => !LIVROS.some(l => l.pronto < l.total && f.nome.includes(l.titulo)));
+  const nz = x => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const filaVisivel = FILA.filter(f => { if (f.falhou) return true; const n = nz(f.nome.replace(/^([^_]+__)+/, '').replace(/\.[a-z0-9]+$/i, '')); return !LIVROS.some(l => nz(l.titulo) === n || nz(l.id) === n || (n.length > 6 && (nz(l.titulo).includes(n) || n.includes(nz(l.titulo))))) });
   if (!LIVROS.length && !filaVisivel.length) { g.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>Sua biblioteca está vazia</b>Toque em <b style="display:inline">Adicionar</b> para enviar um EPUB ou PDF.</div>`; return }
   let h = '';
   for (const f of filaVisivel) {
