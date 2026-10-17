@@ -349,7 +349,7 @@ async function apagaArquivo(p) { const r = await gh('/contents/' + encodeURI(p))
 
 function menuLivro(id) {
   const l = LIVROS.find(x => x.id === id); if (!l) return;
-  sheet(`<h2>${esc(l.titulo)}</h2><p class="note" style="margin-top:-8px">${l.total} capítulos · ${fmtDur(l.duracao)} · voz ${esc(VOZES.find(v => v.id === l.vozid)?.nome || l.voz)}</p>
+  sheet(`<h2>${esc(l.titulo)}</h2><p class="note" style="margin-top:-8px">${l.capitulos?.length ? grupos(l).g.length : l.total} capítulos · ${fmtDur(l.duracao)} · voz ${esc(VOZES.find(v => v.id === l.vozid)?.nome || l.voz)}</p>
     <button class="row" id="m-dl"><svg><use href="#i-dl"/></svg><div class="grow">Baixar para ouvir offline<small id="m-dls">Guarda todos os capítulos neste aparelho</small></div></button>
     <button class="row" id="m-reset"><svg><use href="#i-prev"/></svg><div class="grow">Recomeçar do início</div></button>
     <button class="row" id="m-free"><svg><use href="#i-book"/></svg><div class="grow">Liberar espaço<small>Apaga os áudios baixados deste livro</small></div></button>
@@ -489,11 +489,15 @@ function montaSecao(d, n) {
   return sec;
 }
 function ativa(n) { const s0 = SECS[n]; if (!s0) return; words = s0.words; paras = s0.paras; cur.dados = s0.dados; wIdx = pIdx = -1 }
+const capBase = t => (t || '').replace(/\s*\(\d+\/\d+\)$/, '');
+// partes de áudio (~4 min) agrupadas no capítulo real do livro
+function grupos(m) { const g = [], gi = []; (m.capitulos || []).forEach((c, i) => { if (!g.length || !/\((\d+)\/\d+\)$/.test(c.titulo) || /\(1\/\d+\)$/.test(c.titulo)) g.push({titulo: capBase(c.titulo), ini: i, dur: 0, partes: []}); const x = g[g.length - 1]; x.dur += c.dur || 0; x.partes.push(i); gi[i] = g.length - 1 }); return {g, gi} }
+const capTxt = (m, n) => { const {g, gi} = grupos(m); const tot = m.pronto < m.total ? '' : '/' + g.length; return `${gi[n] + 1}${tot}` };
 const jsonCap = (m, n) => cached(`${BASE}/${m.id}/${m.capitulos[n].arq}.json`, m.criado, 'json');
 async function abreCap(m, n, t = 0, play = true) {
   const tok = ++loadTok, c = m.capitulos[n], tx = $('#txt');
   cur = {livro: m, cap: n}; renderMini();
-  $('#ptitle').textContent = m.titulo; $('#pcap').textContent = c.titulo.replace(/\s*\(\d+\/\d+\)$/, ''); $('#tcap').textContent = `${n + 1}/${m.total}`;
+  $('#ptitle').textContent = m.titulo; $('#pcap').textContent = capBase(c.titulo); $('#tcap').textContent = capTxt(m, n);
   if (SECS_LIVRO !== m.id || !SECS[n]) { SECS = {}; SECS_LIVRO = m.id; tx.innerHTML = '<div class="load"><span class="spin"></span><br><br>Carregando capítulo…</div>' }
   try {
     const [d, blob] = await Promise.all([SECS[n] ? null : jsonCap(m, n), cached(`${BASE}/${m.id}/${c.arq}.mp3`, m.criado)]);
@@ -522,7 +526,7 @@ async function estendeRolagem() {
 }
 let _rolT; $('#txt').addEventListener('scroll', () => { clearTimeout(_rolT); _rolT = setTimeout(() => { estendeRolagem();
   if (!autoScroll && cur) { const box = $('#txt').getBoundingClientRect(); const sec = [...$('#txt').children].find(x => x.getBoundingClientRect().bottom > box.top + 80);
-    if (sec?.dataset.cap != null) { const n = +sec.dataset.cap; $('#pcap').textContent = cur.livro.capitulos[n].titulo; $('#tcap').textContent = `${n + 1}/${cur.livro.total}` } } }, 120) }, {passive: true});
+    if (sec?.dataset.cap != null) { const n = +sec.dataset.cap; $('#pcap').textContent = capBase(cur.livro.capitulos[n].titulo); $('#tcap').textContent = capTxt(cur.livro, n) } } }, 120) }, {passive: true});
 const secDe = el => +el.closest('section')?.dataset.cap;
 const TAGS_OK = /^(p|h[1-6]|li|blockquote|pre|dd|dt|figcaption|caption)$/;
 function renderTexto(d) {
@@ -605,7 +609,8 @@ async function proximo(auto) { if (!cur) return; const m = cur.livro;
 $('#bpp').onclick = $('#mpp').onclick = e => { e.stopPropagation(); if (!au.src) return; au.paused ? au.play() : au.pause() };
 $('#bb').onclick = () => { au.currentTime = Math.max(0, au.currentTime - 15) };
 $('#bf').onclick = () => { au.currentTime = Math.min(au.duration - .1, au.currentTime + 15) };
-$('#bprev').onclick = () => { if (au.currentTime > 5 || !cur.cap) au.currentTime = 0; else abreCap(cur.livro, cur.cap - 1, 0, !au.paused) };
+$('#bprev').onclick = () => { const m = cur.livro, {g, gi} = grupos(m), k = gi[cur.cap], ini = g[k].ini;
+  if (au.currentTime > 5 || cur.cap > ini) { if (cur.cap === ini) au.currentTime = 0; else abreCap(m, ini, 0, !au.paused) } else if (k > 0) abreCap(m, g[k - 1].ini, 0, !au.paused); else au.currentTime = 0 };
 $('#bnext').onclick = () => proximo(false);
 $('#sk').oninput = e => { au.currentTime = e.target.value / 1000 * (au.duration || 0); autoScroll = true; $('#back2').classList.add('hide') };
 
@@ -628,7 +633,7 @@ function fadeOut() { let v = 1; const i = setInterval(() => { v -= .1; au.volume
 
 /* capítulos */
 $('#tcaps').onclick = async () => { const m = cur.livro, cache = await Promise.all(m.capitulos.map(c => isCached(`${BASE}/${m.id}/${c.arq}.mp3`, m.criado)));
-  sheet(`<h2>Capítulos</h2>${m.capitulos.map((c, i) => `<button class="row ${i === cur.cap ? 'sel' : ''}" data-c="${i}"><span style="width:26px;color:var(--tx3)">${i + 1}</span><div class="grow">${esc(c.titulo)}<small>${fmtDur(c.dur)}${cache[i] ? ' · baixado' : ''}</small></div></button>`).join('')}
+  const {g, gi} = grupos(m); sheet(`<h2>Capítulos</h2>${g.map((x, i) => `<button class="row ${i === gi[cur.cap] ? 'sel' : ''}" data-c="${x.ini}"><span style="width:26px;color:var(--tx3)">${i + 1}</span><div class="grow">${esc(x.titulo)}<small>${fmtDur(x.dur)}${x.partes.every(j => cache[j]) ? ' · baixado' : ''}</small></div></button>`).join('')}
     ${m.pronto < m.total ? `<p class="note">Convertendo… ${m.pronto} de ${m.total} prontos.</p>` : ''}`);
   $('#sh').querySelectorAll('[data-c]').forEach(b => b.onclick = () => { closeSheet(); abreCap(m, +b.dataset.c, 0, true) });
   $('#sh').querySelector('.sel')?.scrollIntoView({block: 'center'}) };
@@ -663,12 +668,12 @@ async function outroCelular() {
 
 /* mini player + tela de bloqueio */
 function renderMini() { const show = cur && !$('#pl').classList.contains('on'); $('#mini').classList.toggle('hide', !show); if (!cur) return;
-  $('#mini b').textContent = cur.livro.titulo; $('#mini span').textContent = cur.livro.capitulos[cur.cap].titulo;
+  $('#mini b').textContent = cur.livro.titulo; $('#mini span').textContent = capBase(cur.livro.capitulos[cur.cap].titulo);
   const l = LIVROS.find(x => x.id === cur.livro.id) || cur.livro; coverURL(l).then(u => $('#mini .mc').innerHTML = u ? `<img src="${u}">` : `<div style="width:100%;height:100%;background:${grad(l.titulo)}"></div>`); updMini() }
 function updMini() { if (!$('#mini').classList.contains('hide')) $('#mini .mbar i').style.width = (au.duration ? au.currentTime / au.duration * 100 : 0) + '%' }
 $('#mini').onclick = () => { $('#pl').classList.add('on'); history.pushState({pl: 1}, ''); renderMini(); sync(true) };
 async function mediaSession() { if (!('mediaSession' in navigator) || !cur) return; const l = LIVROS.find(x => x.id === cur.livro.id) || cur.livro, u = await coverURL(l);
-  navigator.mediaSession.metadata = new MediaMetadata({title: cur.livro.capitulos[cur.cap].titulo, artist: cur.livro.autor || '', album: cur.livro.titulo, artwork: u ? [{src: u, sizes: '600x900', type: 'image/jpeg'}] : []});
+  navigator.mediaSession.metadata = new MediaMetadata({title: capBase(cur.livro.capitulos[cur.cap].titulo), artist: cur.livro.autor || '', album: cur.livro.titulo, artwork: u ? [{src: u, sizes: '600x900', type: 'image/jpeg'}] : []});
   const h = {play: () => au.play(), pause: () => au.pause(), seekbackward: () => $('#bb').click(), seekforward: () => $('#bf').click(), previoustrack: () => $('#bprev').click(), nexttrack: () => proximo(false), seekto: e => au.currentTime = e.seekTime};
   for (const [k, f] of Object.entries(h)) try { navigator.mediaSession.setActionHandler(k, f) } catch {} }
 function posState() { try { if (au.duration) navigator.mediaSession.setPositionState({duration: au.duration, playbackRate: au.playbackRate, position: au.currentTime}) } catch {} }
@@ -770,7 +775,7 @@ const marcas = id => LS.get('marcas.' + id, []).map(m => ({cor: 'amarelo', ...m}
 function pintaMarcas() { if (!cur) return; document.querySelectorAll('#txt w[data-mk]').forEach(e => { e.removeAttribute('data-mk'); e.style.removeProperty('--mk') });
   for (const mk of marcas(cur.livro.id)) { const sc = SECS[mk.cap]; if (!sc) continue; for (let i = mk.w0; i <= mk.w1 && i < sc.words.length; i++) { sc.words[i].el.dataset.mk = 1; sc.words[i].el.style.setProperty('--mk', CORES[mk.cor] || CORES.amarelo) } } }
 function salvaMarca(w0, w1, cor, nota = '') { const id = cur.livro.id, l = LS.get('marcas.' + id, []);
-  const txt = trecho(w0, w1); l.push({cap: cur.cap, w0, w1, t: words[w0].t, txt, nota, cor, ts: Date.now(), capt: cur.livro.capitulos[cur.cap].titulo});
+  const txt = trecho(w0, w1); l.push({cap: cur.cap, w0, w1, t: words[w0].t, txt, nota, cor, ts: Date.now(), capt: capBase(cur.livro.capitulos[cur.cap].titulo)});
   LS.set('marcas.' + id, l); dirty(); pintaMarcas(); toast('Marcado em ' + rotulos()[cor].toLowerCase()) }
 function trecho(w0, w1) { const a = words[w0], b = words[w1]; if (a.p === b.p) { const t = cur.dados.p[a.p].t; return t.slice(a.c, b.c + (b.el.firstChild?.textContent ?? b.el.textContent).length).trim() }
   let s = ''; for (let i = w0; i <= w1; i++) s += words[i].el.textContent + (i < w1 && words[i + 1].p !== words[i].p ? '\n' : ' '); return s.replace(/ +\n/g, '\n').trim() }
@@ -896,7 +901,7 @@ $('#psrch').onclick = () => { const m = cur.livro;
   $('#q').onkeydown = async e => { if (e.key !== 'Enter') return; const q = norm($('#q').value.trim()); if (q.length < 2) return; const out = $('#qr'); out.innerHTML = '<p class="note"><span class="spin"></span> Buscando…</p>'; const res = [];
     for (const [n, c] of m.capitulos.entries()) { let d; try { d = await cached(`${BASE}/${m.id}/${c.arq}.json`, m.criado, 'json') } catch { continue }
       for (const p of d.p) { const k = norm(p.t).indexOf(q); if (k < 0) continue; let t = p.s; for (let i = 0; i < p.w.length; i += 3) if (p.w[i] >= k) { t = p.w[i + 2]; break }
-        res.push({n, t, snip: p.t.slice(Math.max(0, k - 50), k + q.length + 60), tit: c.titulo}); if (res.length >= 60) break } if (res.length >= 60) break }
+        res.push({n, t, snip: p.t.slice(Math.max(0, k - 50), k + q.length + 60), tit: capBase(c.titulo)}); if (res.length >= 60) break } if (res.length >= 60) break }
     out.innerHTML = res.length ? res.map((r, i) => `<button class="row" data-r="${i}"><div class="grow"><span style="font-family:var(--ff)">…${esc(r.snip)}…</span><small>${esc(r.tit)} · ${fmt(r.t)}</small></div></button>`).join('') : '<p class="note">Nada encontrado.</p>';
     out.querySelectorAll('[data-r]').forEach(b => b.onclick = () => { const r = res[+b.dataset.r]; closeSheet(); abreCap(m, r.n, r.t, true) }) } };
 
