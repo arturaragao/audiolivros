@@ -63,6 +63,11 @@ svg{width:24px;height:24px;fill:currentColor;flex:none}
 #txt p.cur{background:var(--pbg)}
 #txt p.h{font-weight:600;font-size:1.15em;margin-bottom:1.2em}
 #txt w{border-radius:4px;transition:background .12s,color .12s;cursor:pointer}
+#wmenu{position:fixed;z-index:25;display:flex;background:var(--tx);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}
+#wmenu button{display:flex;align-items:center;gap:6px;padding:10px 14px;color:var(--bg);font-weight:600;font-size:14px}
+#wmenu button+button{border-left:1px solid rgba(128,128,128,.35)}
+#wmenu svg{width:18px;height:18px;fill:var(--bg)}
+#txt w.sel{background:var(--hl);color:#fff}
 #txt w.mk{background:rgba(250,204,21,.28);border-radius:0}
 #txt w.on{background:var(--hlbg);color:var(--hl);box-shadow:0 0 0 2px var(--hlbg)}
 #txt .load{color:var(--tx2);font:15px Inter,sans-serif;text-align:center;padding-top:30vh}
@@ -643,7 +648,7 @@ function fraseDe(wi) { const w = words[wi], p = paras[w.p], txt = p.el.textConte
   return {w0, w1, txt: txt.slice(a, b).trim()} }
 function pintaMarcas() { if (!cur) return; document.querySelectorAll('#txt w.mk').forEach(e => e.classList.remove('mk'));
   for (const mk of LS.get('marcas.' + cur.livro.id, [])) if (mk.cap === cur.cap) for (let i = mk.w0; i <= mk.w1 && i < words.length; i++) words[i].el.classList.add('mk') }
-let lpW; $('#txt').addEventListener('pointerdown', e => { const w = e.target.closest('w'); if (!w) return; lpW = setTimeout(() => { lpW = 'ok'; marcaFrase(+w.dataset.i) }, 520) });
+let lpW; $('#txt').addEventListener('pointerdown', e => { const w = e.target.closest('w'); if (!w) return; lpW = setTimeout(() => { lpW = 'ok'; menuPalavra(+w.dataset.i) }, 480) });
 ['pointerup', 'pointercancel'].forEach(ev => $('#txt').addEventListener(ev, () => { if (lpW !== 'ok') clearTimeout(lpW) }));
 $('#txt').addEventListener('pointermove', e => { if (Math.abs(e.movementY) > 2 && lpW !== 'ok') clearTimeout(lpW) });
 $('#txt').addEventListener('click', e => { if (lpW === 'ok') { e.stopImmediatePropagation(); lpW = null } }, true);
@@ -662,6 +667,40 @@ function abreMarcas(id) { const l = LS.get('marcas.' + id, []), m = metas[id] ||
   $('#mexp') && ($('#mexp').onclick = async () => { const md = `# ${m.titulo || id}\n\n` + l.map(k => `> ${k.txt}\n${k.nota ? '\n' + k.nota + '\n' : ''}\n— ${k.capt || ''}\n`).join('\n');
     if (navigator.share) navigator.share({title: m.titulo, text: md}).catch(() => {}); else { await navigator.clipboard.writeText(md); toast('Copiado — cole no Notion') } }) }
 $('#tmk').onclick = () => abreMarcas(cur.livro.id);
+
+/* --- toque longo: palavra selecionada + ações --- */
+function menuPalavra(wi) {
+  fechaMenuPalavra(); const w = words[wi]; w.el.classList.add('sel'); navigator.vibrate?.(15);
+  const r = w.el.getBoundingClientRect(), m = document.createElement('div'); m.id = 'wmenu';
+  m.innerHTML = `<button data-a="sub"><svg viewBox="0 0 24 24"><path d="M12 17a6 6 0 0 0 6-6V3h-2.5v8a3.5 3.5 0 0 1-7 0V3H6v8a6 6 0 0 0 6 6zm-7 2v2h14v-2z"/></svg>Sublinhar</button><button data-a="pro"><svg viewBox="0 0 24 24"><path d="M9 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-2.7 0-8 1.3-8 4v2h16v-2c0-2.7-5.3-4-8-4zm7.8-9.6-1.7 1.7a3 3 0 0 1 0 3.8l1.7 1.7a5.4 5.4 0 0 0 0-7.2zM20.2 2l-1.6 1.6a8 8 0 0 1 0 10.7l1.6 1.7a10.4 10.4 0 0 0 0-14z"/></svg>Pronúncia</button>`;
+  document.body.append(m);
+  const mw = m.offsetWidth, top = r.top - 56 < 70 ? r.bottom + 10 : r.top - 56;
+  m.style.left = Math.max(8, Math.min(innerWidth - mw - 8, r.left + r.width / 2 - mw / 2)) + 'px'; m.style.top = top + 'px';
+  m.querySelector('[data-a=sub]').onclick = () => { fechaMenuPalavra(); marcaFrase(wi) };
+  m.querySelector('[data-a=pro]').onclick = () => { fechaMenuPalavra(); pronunciaPalavra(w.el.textContent.replace(/[^\p{L}\p{N}'-]/gu, '')) };
+  setTimeout(() => addEventListener('pointerdown', fechaFora, true), 50);
+}
+function fechaFora(e) { if (!e.target.closest('#wmenu')) fechaMenuPalavra() }
+function fechaMenuPalavra() { $('#wmenu')?.remove(); document.querySelectorAll('#txt w.sel').forEach(x => x.classList.remove('sel')); removeEventListener('pointerdown', fechaFora, true) }
+$('#txt').addEventListener('scroll', () => $('#wmenu') && fechaMenuPalavra(), {passive: true});
+async function pronunciaPalavra(pal) { let dic = {};
+  try { const r = await raw(`dicionarios/${DEV}.json`); if (r.ok) dic = await r.json() } catch {}
+  sheet(`<h2>Pronúncia</h2><p class="note" style="margin-top:-6px">Como a voz deve ler <b>${esc(pal)}</b>? Vale para os próximos livros convertidos.</p>
+    <span class="lab">Palavra</span><input class="inp" id="ppk" value="${esc(pal)}"><span class="lab">Ler como</span><input class="inp" id="ppv" placeholder="ex.: tê cê" value="${esc(dic[pal] || '')}">
+    <button class="btn2" id="ppo">▶ Testar no aparelho</button><button class="btn" id="pps">Salvar</button>`);
+  $('#ppv').focus();
+  $('#ppo').onclick = () => { try { const u = new SpeechSynthesisUtterance($('#ppv').value || $('#ppk').value); u.lang = 'pt-BR'; speechSynthesis.cancel(); speechSynthesis.speak(u) } catch { toast('Teste indisponível neste aparelho') } };
+  $('#pps').onclick = async () => { const k = $('#ppk').value.trim(), v = $('#ppv').value.trim(); if (!k || !v) return toast('Preencha os dois campos'); dic[k] = v;
+    const p = `/contents/dicionarios/${DEV}.json`, r = await gh(p), sha = r.ok ? (await r.json()).sha : undefined;
+    const w = await gh(p, {method: 'PUT', body: JSON.stringify({message: 'pronúncia: ' + k, content: b64txt(JSON.stringify(dic, null, 1)), sha})}); toast(w.ok ? 'Pronúncia salva ✓' : 'Erro ao salvar'); if (w.ok) closeSheet() } }
+
+/* --- tela sempre ligada no player --- */
+let wakeLock = null;
+async function telaLigada() { try { if ('wakeLock' in navigator && $('#pl').classList.contains('on') && !document.hidden && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => wakeLock = null) } } catch {} }
+function telaLivre() { try { wakeLock?.release() } catch {} wakeLock = null }
+new MutationObserver(() => $('#pl').classList.contains('on') ? telaLigada() : telaLivre()).observe($('#pl'), {attributes: true, attributeFilter: ['class']});
+document.addEventListener('visibilitychange', () => { if (!document.hidden) telaLigada() });
+addEventListener('pointerdown', () => { if (!wakeLock) telaLigada() }, {passive: true});
 
 /* --- busca no livro --- */
 $('#psrch').onclick = () => { const m = cur.livro;
