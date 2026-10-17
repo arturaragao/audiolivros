@@ -298,7 +298,7 @@ async function carregaLib(silent) {
     LS.set('apagados', apag); LIVROS = LIVROS.filter(l => !apag[l.id]);
     const fs = rf.ok ? await rf.json() : [];
     const nomes = fs.map(f => f.name);
-    FILA = fs.filter(f => (/\.(epub|pdf|docx|txt|md|mobi|azw3|azw|fb2|url)$/i.test(f.name) || /\.falhou$/.test(f.name)) && (DEV === 'principal' ? VOZES.some(v => f.name.startsWith(v.id + '__')) || f.name.split('__').length < 3 : f.name.startsWith(DEV + '__'))).map(f => ({nome: f.name, falhou: /\.falhou$/.test(f.name), errotxt: nomes.includes(f.name.replace(/\.falhou$/, '') + '.erro.txt') ? f.name.replace(/\.falhou$/, '') + '.erro.txt' : null}));
+    FILA = fs.filter(f => (/\.(epub|pdf|docx|txt|md|mobi|azw3|azw|fb2|url)$/i.test(f.name) || /\.falhou$/.test(f.name)) && (DEV === 'principal' ? (VOZES.some(v => f.name.startsWith(v.id + '__')) || f.name.startsWith('c-')) || f.name.split('__').length < 3 : f.name.startsWith(DEV + '__'))).map(f => ({nome: f.name, falhou: /\.falhou$/.test(f.name), errotxt: nomes.includes(f.name.replace(/\.falhou$/, '') + '.erro.txt') ? f.name.replace(/\.falhou$/, '') + '.erro.txt' : null}));
     LS.set('cache.lib', {LIVROS, FILA});
   } catch (e) { const c = LS.get('cache.lib', null); if (c) ({LIVROS, FILA} = c); if (!silent) toast('Sem conexão — mostrando o que está salvo') }
   renderLib();
@@ -1020,6 +1020,98 @@ abreTexto = () => { _abreTexto(); const l = cur?.livro; if (!l) return;
   $('#wwn') && ($('#wwn').oninput = e => { PREFS.wwNivel = +e.target.value; $('#wwnv').textContent = e.target.value; savePrefs(); aplicaWWTodas() }) };
 $('#taa').onclick = abreTexto;
 
+/* --- minhas vozes (clonagem no Kaggle) --- */
+let MINHAS = LS.get('minhas', []);
+const FRASES_GRAV = [
+  'Era uma tarde tranquila de domingo, e o sol entrava devagar pela janela da sala.',
+  'Você já percebeu como algumas histórias ficam guardadas na memória por muitos anos?',
+  'Os pássaros cantavam no quintal enquanto a chuva fina molhava as folhas das árvores.',
+  'Quando cheguei ao hospital, o plantão já tinha começado e havia muitos exames esperando.',
+  'Ela sorriu, respirou fundo e disse: hoje vai ser um dia diferente, eu tenho certeza!',
+  'O livro estava aberto sobre a mesa, com algumas páginas marcadas e anotações a lápis.',
+  'Três, quatro, cinco: contamos juntos até o barco desaparecer no horizonte.',
+  'Não sei explicar direito, mas aquela música sempre me lembra a casa da minha avó.',
+  'Será que amanhã vai fazer frio? Talvez seja melhor levar um casaco, só por garantia.',
+  'A ciência avança aos poucos, com perguntas simples, paciência e muita curiosidade.',
+  'Naquela noite, a cidade inteira parecia dormir, exceto a pequena padaria da esquina.',
+  'Obrigado por ouvir até aqui. Agora é só relaxar e aproveitar a leitura.'];
+async function carregaMinhas() {
+  try { const r = await gh(`/contents/vozes-proprias/${DEV}`); if (!r.ok) { MINHAS = []; LS.set('minhas', []); return }
+    const dirs = (await r.json()).filter(x => x.type === 'dir'), out = [];
+    for (const d of dirs) { try { const j = await (await raw(`vozes-proprias/${DEV}/${d.name}/voz.json`)).json(); out.push({...j, vid: d.name}) } catch {} }
+    MINHAS = out; LS.set('minhas', out) } catch {} }
+const vozMinha = v => ({id: 'c-' + v.vid, nome: v.nome, genero: v.genero || 'F', motor: 'Minhas vozes', gratis: 'Kaggle', desc: `Sua voz · ${Math.round(v.segundos || 0)} s gravados`});
+const _vozesHTML = vozesHTML;
+vozesHTML = sel => { const sv = VOZES; VOZES = [...VOZES, ...MINHAS.map(vozMinha)]; try { return _vozesHTML(sel) } finally { VOZES = sv } };
+const _cachedV = cached;
+cached = (p, ver, tipo) => { const m = p.match(/^vozes\/c-([\w-]+)\.mp3$/); if (m) { const v = MINHAS.find(x => x.vid === m[1]); return _cachedV(`vozes-proprias/${DEV}/${m[1]}/amostra.mp3`, v?.atualizado || 1, tipo) } return _cachedV(p, ver, tipo) };
+const putArq = async (path, b64, msg) => { const ex = await gh('/contents/' + path), sha = ex.ok ? (await ex.json()).sha : undefined;
+  return gh('/contents/' + path, {method: 'PUT', body: JSON.stringify({message: msg, content: b64, sha})}) };
+const blob64 = b => new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result.split(',')[1]); fr.readAsDataURL(b) });
+
+function abreMinhas() {
+  sheet(`<h2>Minhas vozes 🎙️</h2><p class="note" style="margin-top:-6px">Grave sua voz (ou de quem autorizar) e ouça os livros com ela. O áudio é gerado de graça na GPU do Kaggle.</p>
+    ${MINHAS.map(v => `<button class="row" data-v="${v.vid}"><div class="av" style="width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;background:${grad(v.nome)}">${esc(v.nome[0])}</div><div class="grow"><b>${esc(v.nome)}</b><small>${Math.round(v.segundos || 0)} s gravados · ${qualidade(v.segundos).txt}</small></div></button>`).join('') || '<p class="note">Nenhuma voz ainda.</p>'}
+    <button class="btn" id="mnova">+ Criar nova voz</button>`);
+  $('#sh').querySelectorAll('[data-v]').forEach(b => b.onclick = () => editaVoz(MINHAS.find(x => x.vid === b.dataset.v)));
+  $('#mnova').onclick = () => editaVoz(null);
+}
+const qualidade = s => (s = s || 0) < 15 ? {txt: 'insuficiente', cor: '#ef4444', p: s / 60} : s < 40 ? {txt: 'razoável', cor: '#f59e0b', p: s / 60} : s < 90 ? {txt: 'boa', cor: '#22c55e', p: Math.min(1, s / 90)} : {txt: 'ótima', cor: '#16a34a', p: 1};
+function editaVoz(v) {
+  const nova = !v; v = v || {vid: '', nome: '', genero: 'F', segundos: 0, clips: 0};
+  let rec = null, chunks = [], t0 = 0, idx = (v.clips || 0) % FRASES_GRAV.length;
+  const desenha = () => { const q = qualidade(v.segundos);
+    sheet(`<h2>${nova ? 'Criar voz' : 'Aprimorar ' + esc(v.nome)}</h2>
+      ${nova ? `<span class="lab">Nome da voz</span><input class="inp" id="vn" placeholder="Ex.: Artur, Juliana"><span class="lab">Tipo</span><div class="pills"><button data-g="F" class="sel">Feminina</button><button data-g="M">Masculina</button></div>
+      <label class="row" style="border:0;padding:12px 2px"><input type="checkbox" id="vok"><div class="grow">A voz é minha ou tenho autorização da pessoa</div></label>` : ''}
+      <span class="lab">Qualidade: <b style="color:${q.cor}">${q.txt}</b> · ${Math.round(v.segundos)} s gravados (ideal: 1–3 min)</span>
+      <div style="height:8px;background:var(--bg3);border-radius:8px;overflow:hidden"><div style="height:100%;width:${q.p * 100}%;background:${q.cor}"></div></div>
+      <span class="lab">Leia em voz alta, com calma e naturalidade:</span>
+      <p style="font:19px/1.5 var(--ff);background:var(--bg3);padding:14px;border-radius:14px" id="fr">${esc(FRASES_GRAV[idx])}</p>
+      <div style="display:flex;gap:10px"><button class="btn" id="vrec" style="margin:0;flex:2">● Gravar</button><button class="btn2" id="vprox" style="margin:0;flex:1">Outra frase</button></div>
+      <label class="btn2" style="text-align:center">📎 Enviar áudio pronto (WhatsApp, gravador…)<input type="file" accept="audio/*,video/mp4" hidden id="vup"></label>
+      <p class="note">Dicas: lugar silencioso, celular a uns 20 cm da boca, mesmo tom de leitura de livro. Quanto mais frases (até ~3 min), mais parecida fica.</p>
+      <button class="btn" id="vsalva">${nova ? 'Criar voz e gerar amostra' : 'Atualizar amostra'}</button>
+      ${nova ? '' : '<button class="btn2" id="vdel" style="color:#ef4444">Apagar esta voz</button>'}`);
+    $('#sh').querySelectorAll('[data-g]').forEach(b => b.onclick = () => { v.genero = b.dataset.g; $('#sh').querySelectorAll('[data-g]').forEach(x => x.classList.toggle('sel', x === b)) });
+    $('#vprox').onclick = () => { idx = (idx + 1) % FRASES_GRAV.length; $('#fr').textContent = FRASES_GRAV[idx] };
+    $('#vrec').onclick = () => rec ? rec.stop() : grava();
+    $('#vup').onchange = async e => { const f = e.target.files[0]; if (!f) return; if (!await garanteId()) return;
+      const dur = await new Promise(r => { const a = new Audio(URL.createObjectURL(f)); a.onloadedmetadata = () => r(isFinite(a.duration) ? a.duration : 20); a.onerror = () => r(20) });
+      await sobeClip(f, (f.name.split('.').pop() || 'm4a').toLowerCase(), dur) };
+    $('#vsalva').onclick = salva; $('#vdel') && ($('#vdel').onclick = apaga);
+  };
+  const garanteId = async () => { if (v.vid) return true;
+    const nome = $('#vn')?.value.trim(); if (!nome) { toast('Dê um nome à voz'); return false } if (!$('#vok')?.checked) { toast('Confirme que a voz é sua ou autorizada'); return false }
+    v.nome = nome; v.vid = nomeSeguro(nome).toLowerCase().replace(/_/g, '-').slice(0, 24) + '-' + Date.now().toString(36).slice(-4); return true };
+  async function grava() {
+    if (!await garanteId()) return;
+    let st; try { st = await navigator.mediaDevices.getUserMedia({audio: {noiseSuppression: true, echoCancellation: false, autoGainControl: true}}) } catch { return toast('Permita o microfone para gravar') }
+    const tipo = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find(t => window.MediaRecorder?.isTypeSupported?.(t)) || '';
+    rec = new MediaRecorder(st, tipo ? {mimeType: tipo} : {}); chunks = []; t0 = Date.now();
+    rec.ondataavailable = e => chunks.push(e.data);
+    rec.onstop = async () => { st.getTracks().forEach(t => t.stop()); const dur = (Date.now() - t0) / 1000, b = new Blob(chunks, {type: rec.mimeType}); rec = null;
+      $('#vrec').textContent = '● Gravar'; $('#vrec').style.background = '';
+      if (dur < 2) return toast('Gravação muito curta');
+      await sobeClip(b, rec?.mimeType?.includes('mp4') || b.type.includes('mp4') ? 'm4a' : 'webm', dur); idx = (idx + 1) % FRASES_GRAV.length; desenha() };
+    rec.start(); $('#vrec').textContent = '■ Parar'; $('#vrec').style.background = '#ef4444';
+  }
+  async function sobeClip(b, ext, dur) { toast('Enviando gravação…');
+    const r = await putArq(`vozes-proprias/${DEV}/${v.vid}/clip_${Date.now()}.${ext}`, await blob64(b), 'gravação de voz');
+    if (!r.ok) return toast('Erro ao enviar (' + r.status + ')'); v.segundos = (v.segundos || 0) + dur; v.clips = (v.clips || 0) + 1; await gravaMeta(); toast('Gravação salva ✓'); desenha() }
+  async function gravaMeta() { const meta = {nome: v.nome, genero: v.genero, segundos: Math.round(v.segundos), clips: v.clips, atualizado: Date.now()};
+    await putArq(`vozes-proprias/${DEV}/${v.vid}/voz.json`, b64txt(JSON.stringify(meta)), 'voz própria'); Object.assign(v, meta);
+    const i = MINHAS.findIndex(x => x.vid === v.vid); if (i >= 0) MINHAS[i] = {...v}; else MINHAS.push({...v}); LS.set('minhas', MINHAS) }
+  async function salva() { if (!await garanteId()) return; if ((v.segundos || 0) < 10) return toast('Grave pelo menos uns 10 segundos (2–3 frases)');
+    await gravaMeta(); const r = await putArq(`entrada/amostra-${DEV}--${v.vid}.json`, b64txt(JSON.stringify({dev: DEV, vid: v.vid})), 'amostra ' + v.vid);
+    closeSheet(); toast(r.ok ? 'Pronto! A amostra fica pronta em ~5–10 min (Kaggle). Já dá para escolher a voz ao adicionar livros.' : 'Erro (' + r.status + ')') }
+  async function apaga() { if (!confirm('Apagar a voz ' + v.nome + '?')) return; const r = await gh(`/contents/vozes-proprias/${DEV}/${v.vid}`); if (r.ok) for (const f of await r.json()) await gh('/contents/' + f.path, {method: 'DELETE', body: JSON.stringify({message: 'apaga voz', sha: f.sha})});
+    MINHAS = MINHAS.filter(x => x.vid !== v.vid); LS.set('minhas', MINHAS); closeSheet(); toast('Voz apagada') }
+  desenha();
+}
+const _bset3 = $('#bset').onclick;
+$('#bset').onclick = async () => { await _bset3(); $('#a-vo').insertAdjacentHTML('beforebegin', `<button class="row" id="a-mv"><div class="grow">🎙️ Minhas vozes<small>Grave sua voz e ouça livros com ela</small></div></button>`); $('#a-mv').onclick = abreMinhas };
+
 /* ---------- início ---------- */
 async function inicia() {
   applyPrefs(); setSpeed(PREFS.speed);
@@ -1030,7 +1122,7 @@ async function inicia() {
   if (!TOKEN) { $('#setup').classList.remove('hide'); return }
   $('#lib').classList.remove('hide'); $('#fab').classList.remove('hide');
   const c = LS.get('cache.lib', null); if (c) { ({LIVROS, FILA} = c); renderLib() }
-  await Promise.all([carregaLib(), carregaVozes(), desceBackup()]);
+  await Promise.all([carregaLib(), carregaVozes(), desceBackup(), carregaMinhas()]);
   verificaCompartilhado();
   const ult = LS.get('ultimo', null), l = ult && LIVROS.find(x => x.id === ult);
   if (l) { const m = await livroMeta(l), p = prog(l.id) || {cap: 0, t: 0}; if (m?.capitulos.length) abreCap(m, Math.min(p.cap, m.capitulos.length - 1), p.t, false) }
