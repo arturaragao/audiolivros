@@ -64,7 +64,11 @@ svg{width:24px;height:24px;fill:currentColor;flex:none}
 .ph .tt span{font-size:12px;color:var(--tx2)}
 #txt{flex:1;overflow-y:auto;padding:12px var(--marg,22px) 40vh;font:var(--fs)/var(--lh,1.7) var(--ff);max-width:720px;width:100%;margin:auto;scroll-behavior:auto}
 #txt p{margin:0 0 1em;padding:2px 6px;margin-left:-6px;margin-right:-6px;border-radius:8px;transition:background .3s}
-#txt p.cur{background:var(--pbg)}
+#txt .fig{margin:1.2em 0;text-align:center}
+#txt .fig img{max-width:100%;max-height:60vh;border-radius:6px}
+#txt.epub p{margin:0 0 .6em}
+#txt.epub h1,#txt.epub h2,#txt.epub h3{line-height:1.3;margin:1.2em 0 .8em}
+#txt > *.cur{background:var(--pbg)}
 #txt p.h{font-weight:600;font-size:1.15em;margin-bottom:1.2em}
 #txt w{border-radius:4px;transition:background .12s,color .12s;cursor:pointer}
 #wmenu{position:fixed;z-index:25;display:flex;flex-direction:column;background:var(--tx);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}
@@ -472,21 +476,48 @@ async function abreCap(m, n, t = 0, play = true) {
     if (n + 1 < m.capitulos.length) setTimeout(() => cached(`${BASE}/${m.id}/${m.capitulos[n + 1].arq}.mp3`, m.criado).catch(() => {}), 4000);
   } catch (e) { $('#txt').innerHTML = `<div class="load">Não foi possível carregar.<br><small>${esc(e.message)}</small></div>` }
 }
+const TAGS_OK = /^(p|h[1-6]|li|blockquote|pre|dd|dt|figcaption|caption)$/;
 function renderTexto(d) {
   const frag = document.createDocumentFragment(); words = []; paras = [];
   d.p.forEach((p, i) => {
-    const el = document.createElement('p'); if (i === 0 && p.t.length < 120 && !p.t.endsWith('.')) el.className = 'h';
-    let pos = 0; const w = p.w;
-    for (let k = 0; k < w.length; k += 3) {
-      if (w[k] > pos) el.append(p.t.slice(pos, w[k]));
-      const s = document.createElement('w'); s.textContent = p.t.slice(w[k], w[k + 1]); s.dataset.i = words.length;
-      el.append(s); words.push({t: w[k + 2], el: s, p: i, c: w[k]}); pos = w[k + 1];
+    let el;
+    if (p.img) { el = document.createElement('figure'); el.className = 'fig'; const im = document.createElement('img'); im.alt = p.alt || ''; el.append(im);
+      cached(`${BASE}/${cur.livro.id}/${p.img}`, cur.livro.criado).then(b => im.src = URL.createObjectURL(b)).catch(() => el.remove()) }
+    else {
+      const [tag0, ...cls] = (p.k || 'p').split('.'), tag = TAGS_OK.test(tag0) ? tag0 : 'p';
+      el = document.createElement(tag); if (cls.length) el.className = cls.join(' ');
+      if (!p.k && i === 0 && p.t.length < 120 && !p.t.endsWith('.')) el.classList.add('h');
+      if (!p.t) el.hidden = true;
+      if (p.h) el.innerHTML = p.h; else el.textContent = p.t;
+      // embrulha as palavras faladas sem mexer na formatação
+      const w = p.w, alvos = []; for (let k = 0; k < w.length; k += 3) alvos.push([w[k], w[k + 1], w[k + 2]]);
+      if (alvos.length) {
+        const nos = []; const tw = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); let n, off = 0;
+        while ((n = tw.nextNode())) { nos.push([n, off]); off += n.data.length }
+        let ai = 0;
+        for (const [no, ini] of nos) {
+          const fim = ini + no.data.length, cortes = [];
+          while (ai < alvos.length && alvos[ai][0] < fim) { const [a, b, t] = alvos[ai]; if (b > ini) cortes.push([Math.max(a, ini) - ini, Math.min(b, fim) - ini, ai, a >= ini]); if (b <= fim) ai++; else break }
+          if (!cortes.length) continue;
+          const pai = no.parentNode, ff = document.createDocumentFragment(); let pos = 0;
+          for (const [a, b, k, inicio] of cortes) {
+            if (a > pos) ff.append(no.data.slice(pos, a));
+            const sp = document.createElement('w'); sp.textContent = no.data.slice(a, b);
+            if (inicio) { sp.dataset.i = words.length; words.push({t: alvos[k][2], el: sp, p: i, c: alvos[k][0]}) } else sp.dataset.i = words.length - 1;
+            ff.append(sp); pos = b }
+          if (pos < no.data.length) ff.append(no.data.slice(pos));
+          pai.replaceChild(ff, no);
+        }
+      }
     }
-    if (pos < p.t.length) el.append(p.t.slice(pos));
     paras.push({s: p.s, e: p.e, el}); frag.append(el);
   });
-  $('#txt').innerHTML = ''; $('#txt').append(frag); wIdx = pIdx = -1;
+  const tx = $('#txt'); tx.innerHTML = ''; tx.append(frag); wIdx = pIdx = -1;
+  tx.classList.toggle('epub', !!cur?.livro?.css); carregaCSS();
 }
+async function carregaCSS() { const l = cur?.livro; let st = $('#epubcss'); if (!st) { st = document.createElement('style'); st.id = 'epubcss'; document.head.append(st) }
+  if (!l?.css) { st.textContent = ''; st.dataset.id = ''; return } if (st.dataset.id === l.id) return;
+  try { st.textContent = await (await cached(`${BASE}/${l.id}/${l.css}`, l.criado)).text(); st.dataset.id = l.id } catch {} }
 function busca(t) { let lo = 0, hi = words.length - 1, r = -1; while (lo <= hi) { const m = lo + hi >> 1; if (words[m].t <= t + 0.05) { r = m; lo = m + 1 } else hi = m - 1 } return r }
 function sync(force) {
   const t = au.currentTime, i = busca(t);
@@ -652,7 +683,7 @@ async function exportaMP3(l, el) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(partes, {type: 'audio/mpeg'})); a.download = nomeSeguro(m.titulo) + '.mp3'; a.click();
   el.textContent = 'Pronto ✓ (veja em Downloads)' }
 
-function fraseDe(wi) { const w = words[wi], p = paras[w.p], txt = p.el.textContent; let a = 0, b = txt.length;
+function fraseDe(wi) { const w = words[wi], p = paras[w.p], txt = cur.dados.p[w.p].t; let a = 0, b = txt.length;
   for (const m of txt.matchAll(/[^.!?…]+[.!?…]*["”»’)]*\s*/g)) { if (m.index <= w.c && w.c < m.index + m[0].length) { a = m.index; b = m.index + m[0].length; break } }
   let w0 = wi, w1 = wi; while (w0 > 0 && words[w0 - 1].p === w.p && words[w0 - 1].c >= a) w0--; while (w1 < words.length - 1 && words[w1 + 1].p === w.p && words[w1 + 1].c < b) w1++;
   return {w0, w1, txt: txt.slice(a, b).trim()} }
@@ -676,7 +707,7 @@ function pintaMarcas() { if (!cur) return; document.querySelectorAll('#txt w[dat
 function salvaMarca(w0, w1, cor, nota = '') { const id = cur.livro.id, l = LS.get('marcas.' + id, []);
   const txt = trecho(w0, w1); l.push({cap: cur.cap, w0, w1, t: words[w0].t, txt, nota, cor, ts: Date.now(), capt: cur.livro.capitulos[cur.cap].titulo});
   LS.set('marcas.' + id, l); dirty(); pintaMarcas(); toast('Marcado em ' + rotulos()[cor].toLowerCase()) }
-function trecho(w0, w1) { const a = words[w0], b = words[w1]; if (a.p === b.p) { const t = paras[a.p].el.textContent; return t.slice(a.c, b.c + b.el.textContent.length).trim() }
+function trecho(w0, w1) { const a = words[w0], b = words[w1]; if (a.p === b.p) { const t = cur.dados.p[a.p].t; return t.slice(a.c, b.c + (b.el.firstChild?.textContent ?? b.el.textContent).length).trim() }
   let s = ''; for (let i = w0; i <= w1; i++) s += words[i].el.textContent + (i < w1 && words[i + 1].p !== words[i].p ? '\n' : ' '); return s.replace(/ +\n/g, '\n').trim() }
 function marcaFrase(wi) { const f = fraseDe(wi); menuSelecao(f.w0, f.w1) }
 function abreMarcas(id, filtro = '') { const l = marcas(id), m = metas[id] || LS.get('meta.' + id, {}), rot = rotulos(), vis = l.map((k, i) => [k, i]).filter(([k]) => !filtro || k.cor === filtro);
