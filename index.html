@@ -220,7 +220,12 @@ const API = 'https://api.github.com/repos/' + REPO;
 const $ = s => document.querySelector(s), au = $('#au');
 const LS = {get(k, d) { try { const v = localStorage.getItem('ouvir.' + k); return v == null ? d : JSON.parse(v) } catch { return d } },
             set(k, v) { try { localStorage.setItem('ouvir.' + k, JSON.stringify(v)) } catch {} }};
-let TOKEN = LS.get('token', ''), LIVROS = [], FILA = [], VOZES = [], cur = null; // cur = {livro, cap, dados, words}
+const _K = ['__K1__', '__K2__', '__K3__'];
+const APPKEY = (() => { try { return _K.map(x => atob(x.split('').reverse().join(''))).join('') } catch { return '' } })();
+let DEV = LS.get('dev', null);
+if (!DEV) { DEV = LS.get('token', '') ? 'principal' : (crypto.randomUUID?.() || Math.random().toString(36).slice(2) + Date.now().toString(36)).toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 36); LS.set('dev', DEV) }
+const BASE = DEV === 'principal' ? 'livros' : 'livros/d/' + DEV;
+let TOKEN = LS.get('token', '') || APPKEY, LIVROS = [], FILA = [], VOZES = [], cur = null; // cur = {livro, cap, dados, words}
 const PREFS = Object.assign({fs: 20, theme: 'dark', speed: 1, voz: 'francisca'}, LS.get('prefs', {}));
 const savePrefs = () => LS.set('prefs', PREFS);
 const fmt = s => { s = Math.max(0, Math.floor(s || 0)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = String(s % 60).padStart(2, '0'); return h ? `${h}:${String(m).padStart(2, '0')}:${x}` : `${m}:${x}` };
@@ -233,7 +238,7 @@ function applyPrefs() { document.documentElement.dataset.theme = PREFS.theme; do
 /* ---------- GitHub ---------- */
 async function gh(path, opt = {}) {
   const r = await fetch(API + path, {...opt, cache: 'no-store', headers: {Authorization: 'Bearer ' + TOKEN, Accept: 'application/vnd.github+json', ...(opt.headers || {})}});
-  if (r.status === 401) { LS.set('token', ''); location.reload() }
+  if (r.status === 401 && LS.get('token', '')) { LS.set('token', ''); location.reload() }
   return r;
 }
 const raw = p => gh('/contents/' + encodeURI(p), {headers: {Accept: 'application/vnd.github.raw'}});
@@ -246,7 +251,7 @@ async function cached(p, ver, tipo = 'blob') { // arquivos imutáveis: guardados
 const isCached = async (p, ver) => !!self.caches && !!(await (await caches.open('ouvir-dados')).match(`https://ouvir.local/${p}?v=${ver}`));
 const coverUrls = {};
 async function coverURL(l) { if (!l.capa) return null; if (coverUrls[l.id]) return coverUrls[l.id];
-  try { return coverUrls[l.id] = URL.createObjectURL(await cached(`livros/${l.id}/${l.capa}`, l.criado)) } catch { return null } }
+  try { return coverUrls[l.id] = URL.createObjectURL(await cached(`${BASE}/${l.id}/${l.capa}`, l.criado)) } catch { return null } }
 
 /* ---------- biblioteca ---------- */
 const prog = id => LS.get('pos.' + id, null);
@@ -254,11 +259,11 @@ function pct(l) { const p = prog(l.id); if (!p || !l.duracao) return 0; return M
 function grad(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return `linear-gradient(160deg,hsl(${h} 45% 38%),hsl(${(h + 40) % 360} 50% 18%))` }
 async function carregaLib(silent) {
   try {
-    const [ri, rf] = await Promise.all([raw('livros/index.json'), gh('/contents/entrada')]);
+    const [ri, rf] = await Promise.all([raw(BASE + '/index.json'), gh('/contents/entrada')]);
     LIVROS = ri.ok ? await ri.json() : [];
     const fs = rf.ok ? await rf.json() : [];
     const nomes = fs.map(f => f.name);
-    FILA = fs.filter(f => /\.(epub|pdf)$/i.test(f.name) || /\.falhou$/.test(f.name)).map(f => ({nome: f.name, falhou: /\.falhou$/.test(f.name), errotxt: nomes.includes(f.name.replace(/\.falhou$/, '') + '.erro.txt') ? f.name.replace(/\.falhou$/, '') + '.erro.txt' : null}));
+    FILA = fs.filter(f => (/\.(epub|pdf)$/i.test(f.name) || /\.falhou$/.test(f.name)) && (DEV === 'principal' ? f.name.split('__').length < 3 : f.name.startsWith(DEV + '__'))).map(f => ({nome: f.name, falhou: /\.falhou$/.test(f.name), errotxt: nomes.includes(f.name.replace(/\.falhou$/, '') + '.erro.txt') ? f.name.replace(/\.falhou$/, '') + '.erro.txt' : null}));
     LS.set('cache.lib', {LIVROS, FILA});
   } catch (e) { const c = LS.get('cache.lib', null); if (c) ({LIVROS, FILA} = c); if (!silent) toast('Sem conexão — mostrando o que está salvo') }
   renderLib();
@@ -272,7 +277,7 @@ async function renderLib() {
   if (!LIVROS.length && !filaVisivel.length) { g.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>Sua biblioteca está vazia</b>Toque em <b style="display:inline">Adicionar</b> para enviar um EPUB ou PDF.</div>`; return }
   let h = '';
   for (const f of filaVisivel) {
-    const nome = f.nome.replace(/\.(falhou)$/, '').replace(/^[^_]+__/, '').replace(/\.(epub|pdf)$/i, '').replace(/_/g, ' ');
+    const nome = f.nome.replace(/\.(falhou)$/, '').replace(/^([^_]+__)+/, '').replace(/\.(epub|pdf)$/i, '').replace(/_/g, ' ');
     h += `<button class="card" data-fila="${esc(f.nome)}"><div class="cov" style="background:${grad(nome)}"><div class="gen">${esc(nome)}</div>
       <span class="chip ${f.falhou ? 'err' : ''}">${f.falhou ? 'Falhou' : '<span class="spin" style="width:10px;height:10px;border-width:2px"></span> Na fila'}</span></div><h3>${esc(nome)}</h3><p>${f.falhou ? 'Toque para ver o erro' : 'Preparando…'}</p></button>`;
   }
@@ -300,7 +305,7 @@ $('#grid').addEventListener('contextmenu', e => { if (e.target.closest('[data-id
 async function menuFila(nome) {
   const f = FILA.find(x => x.nome === nome); let msg = 'Este livro está na fila. A conversão começa em instantes e os capítulos aparecem conforme ficam prontos.';
   if (f?.falhou && f.errotxt) { try { msg = 'Erro: ' + await (await raw('entrada/' + f.errotxt)).text() } catch {} }
-  sheet(`<h2>${esc(nome.replace(/^[^_]+__/, '').replace(/\.falhou$/, ''))}</h2><p class="note">${esc(msg)}</p>
+  sheet(`<h2>${esc(nome.replace(/^([^_]+__)+/, '').replace(/\.falhou$/, ''))}</h2><p class="note">${esc(msg)}</p>
     <button class="btn2" id="rmf" style="color:#ef4444">Remover da fila</button>`);
   $('#rmf').onclick = async () => { closeSheet(); for (const n of [nome, f?.errotxt].filter(Boolean)) await apagaArquivo('entrada/' + n); toast('Removido'); carregaLib() };
 }
@@ -316,25 +321,25 @@ function menuLivro(id) {
     <button class="row" id="m-del" style="color:#ef4444"><svg style="fill:#ef4444"><use href="#i-more"/></svg><div class="grow">Apagar livro</div></button>`);
   $('#m-dl').onclick = () => baixaLivro(l, $('#m-dls'));
   $('#m-reset').onclick = () => { LS.set('pos.' + id, null); closeSheet(); renderLib(); toast('Progresso zerado') };
-  $('#m-free').onclick = async () => { const c = await caches.open('ouvir-dados'); for (const k of await c.keys()) if (k.url.includes(`/livros/${id}/cap_`)) await c.delete(k); closeSheet(); renderLib(); toast('Espaço liberado') };
+  $('#m-free').onclick = async () => { const c = await caches.open('ouvir-dados'); for (const k of await c.keys()) if (k.url.includes(`/${BASE}/${id}/cap_`)) await c.delete(k); closeSheet(); renderLib(); toast('Espaço liberado') };
   $('#m-del').onclick = async () => { if (!confirm(`Apagar "${l.titulo}" da biblioteca?`)) return; closeSheet();
-    const body = btoa(unescape(encodeURIComponent(JSON.stringify({id}))));
-    await gh(`/contents/entrada/apagar-${encodeURIComponent(id)}.json`, {method: 'PUT', body: JSON.stringify({message: 'apagar ' + id, content: body})});
+    const body = btoa(unescape(encodeURIComponent(JSON.stringify({id, dev: DEV}))));
+    await gh(`/contents/entrada/apagar-${DEV}--${encodeURIComponent(id)}.json`, {method: 'PUT', body: JSON.stringify({message: 'apagar ' + id, content: body})});
     LIVROS = LIVROS.filter(x => x.id !== id); renderLib(); toast('Livro será apagado em instantes') };
 }
 const metas = {};
 async function livroMeta(l, fresh) {
   if (!fresh && metas[l.id]) return metas[l.id];
-  try { const r = await raw(`livros/${l.id}/livro.json`); metas[l.id] = await r.json(); LS.set('meta.' + l.id, metas[l.id]) }
+  try { const r = await raw(`${BASE}/${l.id}/livro.json`); metas[l.id] = await r.json(); LS.set('meta.' + l.id, metas[l.id]) }
   catch { metas[l.id] = LS.get('meta.' + l.id, null) }
   return metas[l.id];
 }
 async function offlineCompleto(l) { const m = LS.get('meta.' + l.id, null); if (!m || m.pronto < m.total) return false;
-  for (const c of m.capitulos) if (!await isCached(`livros/${l.id}/${c.arq}.mp3`, m.criado)) return false; return true }
+  for (const c of m.capitulos) if (!await isCached(`${BASE}/${l.id}/${c.arq}.mp3`, m.criado)) return false; return true }
 async function baixaLivro(l, el) {
   const m = await livroMeta(l, true); let i = 0;
   for (const c of m.capitulos) { el.textContent = `Baixando ${++i}/${m.capitulos.length}…`;
-    try { await cached(`livros/${l.id}/${c.arq}.json`, m.criado, 'json'); await cached(`livros/${l.id}/${c.arq}.mp3`, m.criado) } catch (e) { el.textContent = 'Erro: ' + e.message; return } }
+    try { await cached(`${BASE}/${l.id}/${c.arq}.json`, m.criado, 'json'); await cached(`${BASE}/${l.id}/${c.arq}.mp3`, m.criado) } catch (e) { el.textContent = 'Erro: ' + e.message; return } }
   el.textContent = m.pronto < m.total ? `Baixados ${i} (o resto ainda está sendo convertido)` : 'Tudo baixado ✓'; renderLib();
 }
 
@@ -384,7 +389,7 @@ $('#fab').onclick = () => {
     const base = arq.name.replace(/\.(epub|pdf)$/i, '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w-]+/g, '_').slice(0, 80);
     const ext = arq.name.match(/\.(epub|pdf)$/i)?.[1].toLowerCase() || 'epub';
     const b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result.split(',')[1]); fr.readAsDataURL(arq) });
-    const r = await gh(`/contents/entrada/${voz}__${base}.${ext}`, {method: 'PUT', body: JSON.stringify({message: 'novo livro: ' + arq.name, content: b64})});
+    const r = await gh(`/contents/entrada/${DEV === 'principal' ? '' : DEV + '__'}${voz}__${base}.${ext}`, {method: 'PUT', body: JSON.stringify({message: 'novo livro: ' + arq.name, content: b64})});
     if (r.ok) { closeSheet(); toast('Enviado! A conversão já começou.'); setTimeout(carregaLib, 1500) }
     else { b.disabled = false; b.textContent = 'Tentar de novo'; toast('Erro ao enviar (' + r.status + ')' + (r.status === 422 ? ': já existe um arquivo com esse nome' : '')) }
   };
@@ -410,7 +415,7 @@ async function abreCap(m, n, t = 0, play = true) {
   $('#ptitle').textContent = m.titulo; $('#pcap').textContent = c.titulo; $('#tcap').textContent = `${n + 1}/${m.total}`;
   $('#txt').innerHTML = '<div class="load"><span class="spin"></span><br><br>Carregando capítulo…</div>';
   try {
-    const [d, blob] = await Promise.all([cached(`livros/${m.id}/${c.arq}.json`, m.criado, 'json'), cached(`livros/${m.id}/${c.arq}.mp3`, m.criado)]);
+    const [d, blob] = await Promise.all([cached(`${BASE}/${m.id}/${c.arq}.json`, m.criado, 'json'), cached(`${BASE}/${m.id}/${c.arq}.mp3`, m.criado)]);
     if (tok !== loadTok) return;
     renderTexto(d);
     if (au.src) URL.revokeObjectURL(au.src);
@@ -420,7 +425,7 @@ async function abreCap(m, n, t = 0, play = true) {
     autoScroll = true; $('#back2').classList.add('hide'); sync(true);
     mediaSession();
     if (play) au.play().catch(() => {});
-    if (n + 1 < m.capitulos.length) setTimeout(() => cached(`livros/${m.id}/${m.capitulos[n + 1].arq}.mp3`, m.criado).catch(() => {}), 4000);
+    if (n + 1 < m.capitulos.length) setTimeout(() => cached(`${BASE}/${m.id}/${m.capitulos[n + 1].arq}.mp3`, m.criado).catch(() => {}), 4000);
   } catch (e) { $('#txt').innerHTML = `<div class="load">Não foi possível carregar.<br><small>${esc(e.message)}</small></div>` }
 }
 function renderTexto(d) {
@@ -493,7 +498,7 @@ $('#tsleep').onclick = () => { sheet(`<h2>Timer para dormir</h2><div class="pill
 function fadeOut() { let v = 1; const i = setInterval(() => { v -= .1; au.volume = Math.max(0, v); if (v <= 0) { clearInterval(i); au.pause(); au.volume = 1 } }, 300) }
 
 /* capítulos */
-$('#tcaps').onclick = async () => { const m = cur.livro, cache = await Promise.all(m.capitulos.map(c => isCached(`livros/${m.id}/${c.arq}.mp3`, m.criado)));
+$('#tcaps').onclick = async () => { const m = cur.livro, cache = await Promise.all(m.capitulos.map(c => isCached(`${BASE}/${m.id}/${c.arq}.mp3`, m.criado)));
   sheet(`<h2>Capítulos</h2>${m.capitulos.map((c, i) => `<button class="row ${i === cur.cap ? 'sel' : ''}" data-c="${i}"><span style="width:26px;color:var(--tx3)">${i + 1}</span><div class="grow">${esc(c.titulo)}<small>${fmtDur(c.dur)}${cache[i] ? ' · baixado' : ''}</small></div></button>`).join('')}
     ${m.pronto < m.total ? `<p class="note">Convertendo… ${m.pronto} de ${m.total} prontos.</p>` : ''}`);
   $('#sh').querySelectorAll('[data-c]').forEach(b => b.onclick = () => { closeSheet(); abreCap(m, +b.dataset.c, 0, true) });
@@ -510,11 +515,11 @@ $('#pmore').onclick = () => menuLivro(cur.livro.id);
 $('#bset').onclick = async () => { let uso = ''; try { const e = await navigator.storage.estimate(); uso = (e.usage / 1048576).toFixed(0) + ' MB usados no aparelho' } catch {}
   sheet(`<h2>Ajustes</h2><span class="lab">Voz padrão para novos livros</span>${vozesHTML(PREFS.voz)}
     <span class="lab">Tema</span><div class="pills">${[['dark', 'Escuro'], ['light', 'Claro'], ['sepia', 'Sépia']].map(([k, n]) => `<button data-t="${k}" class="${PREFS.theme === k ? 'sel' : ''}">${n}</button>`).join('')}</div>
-    <button class="btn2" id="outro">📱 Usar em outro celular</button><p class="note">${uso}</p><button class="btn2" id="sair">Trocar chave do GitHub</button>`);
+    <p class="note">${uso}</p><button class="btn2" id="sair">Trocar chave do GitHub</button>`);
   ligaVozes(v => { PREFS.voz = v; savePrefs() });
   $('#sh').querySelectorAll('[data-t]').forEach(b => b.onclick = () => { PREFS.theme = b.dataset.t; savePrefs(); applyPrefs(); $('#sh').querySelectorAll('[data-t]').forEach(x => x.classList.toggle('sel', x === b)) });
   $('#sair').onclick = () => { LS.set('token', ''); location.reload() };
-  $('#outro').onclick = outroCelular };
+  };
 async function outroCelular() {
   const link = location.origin + location.pathname + '#k=' + TOKEN;
   sheet(`<h2>Usar em outro celular</h2><p class="note" style="margin-top:-6px">No outro celular, aponte a câmera para o código ou abra o link. Ele entra direto, sem pedir chave.</p>
