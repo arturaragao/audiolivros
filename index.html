@@ -1063,14 +1063,14 @@ function editaVoz(v) {
       <span class="lab">Fidelidade ao ritmo da sua fala <b id="vcfv">${v.cfg ?? 0.5}</b> (mais solta ↔ mais colada)</span><input type="range" class="fsr" id="vcf" min="0.2" max="0.8" step="0.05" value="${v.cfg ?? 0.5}">
       <span class="lab">Gravações</span><div id="vclips"><p class="note"><span class="spin"></span></p></div>`}
       <button class="btn" id="vsalva">${nova ? 'Criar voz e gerar amostra' : 'Salvar e gerar nova amostra'}</button>
-      ${nova ? '' : '<button class="btn2" id="vdel" style="color:#ef4444">Apagar esta voz</button>'}`);
+      ${nova ? '' : `<button class="btn2" id="vtre">🎓 Treino completo (${((v.treino_s || 0) / 60).toFixed(0)} de 30 min gravados)</button><button class="btn2" id="vdel" style="color:#ef4444">Apagar esta voz</button>`}`);
     $('#sh').querySelectorAll('[data-g]').forEach(b => b.onclick = () => { v.genero = b.dataset.g; $('#sh').querySelectorAll('[data-g]').forEach(x => x.classList.toggle('sel', x === b)) });
     $('#vprox').onclick = () => { avanca(); $('#fr').textContent = fr() };
     $('#vrec').onclick = () => rec ? rec.stop() : grava();
     $('#vup').onchange = async e => { const f = e.target.files[0]; if (!f) return; if (!await garanteId()) return;
       const dur = await new Promise(r => { const a = new Audio(URL.createObjectURL(f)); a.onloadedmetadata = () => r(isFinite(a.duration) ? a.duration : 20); a.onerror = () => r(20) });
       await sobeClip(f, (f.name.split('.').pop() || 'm4a').toLowerCase(), dur) };
-    $('#vsalva').onclick = salva; $('#vdel') && ($('#vdel').onclick = apaga);
+    $('#vsalva').onclick = salva; $('#vdel') && ($('#vdel').onclick = apaga); $('#vtre') && ($('#vtre').onclick = () => abreTreino(v));
     if ($('#vex')) { $('#vex').oninput = e => { v.exag = +e.target.value; $('#vexv').textContent = e.target.value }; $('#vcf').oninput = e => { v.cfg = +e.target.value; $('#vcfv').textContent = e.target.value }; listaClips() }
   };
   const garanteId = async () => { if (v.vid) return true;
@@ -1110,6 +1110,56 @@ function editaVoz(v) {
 }
 const _bset3 = $('#bset').onclick;
 $('#bset').onclick = async () => { await _bset3(); $('#a-vo').insertAdjacentHTML('beforebegin', `<button class="row" id="a-mv"><div class="grow">🎙️ Minhas vozes<small>Grave sua voz e ouça livros com ela</small></div></button>`); $('#a-mv').onclick = abreMinhas };
+
+/* --- treino completo da voz: gravações longas com o texto conhecido --- */
+const ESPECIAIS = ['Em 2024, cerca de 1.250 pessoas participaram; 37% eram mulheres.', 'O capítulo 12 começa na página 248 e termina na 301.', 'Ele nasceu em 15 de março de 1987, às 7h45 da manhã.', 'A dose foi de 2,5 miligramas, três vezes ao dia, durante 14 dias.', 'Primeiro, segundo, terceiro, décimo e vigésimo primeiro lugar.', 'O lote custou R$ 3.499,90, parcelado em 12 vezes.', 'Zero, um, dois, três, quatro, cinco, seis, sete, oito, nove, dez.', 'Onze, doze, treze, quatorze, quinze, dezesseis, dezessete, dezoito, dezenove, vinte.', 'Cem, duzentos, quinhentos, mil, dez mil, um milhão.',
+  'Como escreveu Shakespeare em Hamlet: to be or not to be, that is the question.', 'O livro The Pragmatic Programmer, de Andrew Hunt e David Thomas, é um clássico.', 'Ela trabalhava no Google e depois foi para a Microsoft, em Seattle.', 'O artigo foi publicado na revista Radiology, do Radiological Society of North America.', 'Steve Jobs apresentou o iPhone em janeiro de dois mil e sete, em San Francisco.', 'The quick brown fox jumps over the lazy dog.', 'Machine learning, deep learning e artificial intelligence viraram palavras comuns.',
+  'Você tem certeza? Mesmo? Então tá bom, vamos nessa!', 'Não! Espera! Eu esqueci a chave em cima da mesa...', 'Hmm, deixa eu pensar... acho que foi na terça-feira, não na quarta.', 'Ele sussurrou: fica quieto, alguém está vindo.', 'Parabéns! Você conseguiu, depois de tanto esforço!', 'Que pena. Eu realmente esperava um resultado diferente.',
+  'Ressonância magnética, tomografia computadorizada e ultrassonografia com Doppler.', 'Paralelepípedo, otorrinolaringologista e anticonstitucionalissimamente.', 'Exceção, excesso, exímio, exato, exausto e excêntrico.', 'Cinquenta e quatro, sessenta e sete, oitenta e nove, noventa e nove.'];
+function abreTreino(v) {
+  const meta = LS.get('treino.' + v.vid, {fonte: 'especiais', livro: null, cap: 0, par: 0, i: 0});
+  let rec = null, chunks = [], t0 = 0, textoAtual = '';
+  const salvaMeta = () => LS.set('treino.' + v.vid, meta);
+  async function proximoTexto() {
+    if (meta.fonte === 'especiais') { textoAtual = ESPECIAIS[meta.i % ESPECIAIS.length]; return }
+    const l = LIVROS.find(x => x.id === meta.livro); if (!l) { meta.fonte = 'especiais'; return proximoTexto() }
+    const m = await livroMeta(l); for (let tent = 0; tent < 400; tent++) {
+      const c = m.capitulos[meta.cap % m.capitulos.length]; const d = await cached(`${BASE}/${l.id}/${c.arq}.json`, m.criado, 'json');
+      const p = d.p[meta.par]; if (!p) { meta.cap++; meta.par = 0; continue }
+      if (p.t && p.t.length > 40 && p.t.length < 600 && p.w.length) { textoAtual = p.t; return } meta.par++ }
+  }
+  const avanca = () => { if (meta.fonte === 'especiais') meta.i++; else meta.par++; salvaMeta() };
+  async function desenha() {
+    await proximoTexto(); const min = (v.treino_s || 0) / 60, alvo = 30;
+    sheet(`<h2>🎓 Treino completo — ${esc(v.nome)}</h2>
+      <p class="note" style="margin-top:-6px">Para um treino de verdade, o ideal é <b>30 a 60 minutos</b> de leitura com o texto conhecido. Pode fazer aos poucos, em vários dias — o progresso fica salvo.</p>
+      <span class="lab">Progresso: <b>${min.toFixed(1)} min</b> de ${alvo} min</span><div style="height:8px;background:var(--bg3);border-radius:8px;overflow:hidden"><div style="height:100%;width:${Math.min(100, min / alvo * 100)}%;background:var(--hl)"></div></div>
+      <span class="lab">O que ler</span><div class="pills"><button data-f="especiais" class="${meta.fonte === 'especiais' ? 'sel' : ''}">Números, inglês e emoções</button>${LIVROS.filter(l => l.pronto).slice(0, 6).map(l => `<button data-l="${esc(l.id)}" class="${meta.livro === l.id && meta.fonte === 'livro' ? 'sel' : ''}">${esc(l.titulo.slice(0, 28))}</button>`).join('')}</div>
+      <p style="font:19px/1.55 var(--ff);background:var(--bg3);padding:14px;border-radius:14px;margin-top:14px">${esc(textoAtual)}</p>
+      <div style="display:flex;gap:10px"><button class="btn" id="trec" style="margin:0;flex:2">● Gravar</button><button class="btn2" id="tpula" style="margin:0;flex:1">Pular</button></div>
+      <p class="note">Leia exatamente o texto, no seu ritmo natural de leitura de livro. Errou? Pare, toque em Gravar de novo e repita o trecho. Termos em inglês: pronuncie em inglês.</p>`);
+    $('#sh').querySelectorAll('[data-f]').forEach(b => b.onclick = () => { meta.fonte = 'especiais'; salvaMeta(); desenha() });
+    $('#sh').querySelectorAll('[data-l]').forEach(b => b.onclick = () => { if (meta.livro !== b.dataset.l) { meta.livro = b.dataset.l; meta.cap = 0; meta.par = 0 } meta.fonte = 'livro'; salvaMeta(); desenha() });
+    $('#tpula').onclick = () => { avanca(); desenha() };
+    $('#trec').onclick = () => rec ? rec.stop() : grava();
+  }
+  async function grava() {
+    let st; try { st = await navigator.mediaDevices.getUserMedia({audio: {noiseSuppression: false, echoCancellation: false, autoGainControl: false, channelCount: 1}}) } catch { return toast('Permita o microfone') }
+    const tipo = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find(t => window.MediaRecorder?.isTypeSupported?.(t)) || '';
+    rec = new MediaRecorder(st, {...(tipo ? {mimeType: tipo} : {}), audioBitsPerSecond: 128000}); chunks = []; t0 = Date.now();
+    rec.ondataavailable = e => chunks.push(e.data);
+    rec.onstop = async () => { st.getTracks().forEach(t => t.stop()); const dur = (Date.now() - t0) / 1000, b = new Blob(chunks, {type: rec.mimeType}); rec = null;
+      if (dur < 1.5) { toast('Muito curta'); return desenha() }
+      const ext = b.type.includes('mp4') ? 'm4a' : 'webm', id = Date.now(), dir = `vozes-proprias/${DEV}/${v.vid}/treino`;
+      toast('Enviando…'); const r = await putArq(`${dir}/t_${id}.${ext}`, await blob64(b), 'treino de voz');
+      if (!r.ok) { toast('Erro ao enviar'); return desenha() }
+      await putArq(`${dir}/t_${id}.txt`, b64txt(textoAtual), 'texto do treino');
+      v.treino_s = (v.treino_s || 0) + dur; await putArq(`vozes-proprias/${DEV}/${v.vid}/voz.json`, b64txt(JSON.stringify({...v, atualizado: Date.now()})), 'voz própria');
+      avanca(); desenha() };
+    rec.start(); $('#trec').textContent = '■ Parar'; $('#trec').style.background = '#ef4444';
+  }
+  desenha();
+}
 
 /* ---------- início ---------- */
 async function inicia() {
