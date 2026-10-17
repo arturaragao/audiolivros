@@ -729,6 +729,8 @@ menuLivro = id => { _menuLivro(id); const l = LIVROS.find(x => x.id === id) || c
   $('#m-dl').insertAdjacentHTML('afterend', `<button class="row" id="m-col"><svg><use href="#i-list"/></svg><div class="grow">Coleções…</div></button>
     <button class="row" id="m-mk"><svg><use href="#i-book"/></svg><div class="grow">Marcadores e destaques<small>${(LS.get('marcas.' + id, [])).length} salvos</small></div></button>
     <button class="row" id="m-exp"><svg><use href="#i-dl"/></svg><div class="grow">Exportar MP3<small id="m-exps">Um arquivo com o livro inteiro, para qualquer player</small></div></button>`);
+  $('#m-col').insertAdjacentHTML('beforebegin', `<button class="row" id="m-rf"><svg viewBox="0 0 24 24"><path d="M12 6V3L8 7l4 4V8a4 4 0 1 1-4 4H6a6 6 0 1 0 6-6z"/></svg><div class="grow">Mudar voz ou idioma<small>${l?.refazer ? 'Refaz o áudio; texto, progresso e destaques ficam' : 'Indisponível para livros antigos — reenvie o arquivo'}</small></div></button>`);
+  $('#m-rf').onclick = () => l?.refazer ? refazer(l) : toast('Este livro foi convertido antes dessa opção existir. Reenvie o arquivo.');
   $('#m-col').onclick = () => abreColecoes(id); $('#m-mk').onclick = () => abreMarcas(id); $('#m-exp').onclick = () => exportaMP3(l, $('#m-exps')) };
 async function exportaMP3(l, el) {
   const m = await livroMeta(l, true), partes = []; let i = 0;
@@ -737,6 +739,14 @@ async function exportaMP3(l, el) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(partes, {type: 'audio/mpeg'})); a.download = nomeSeguro(m.titulo) + '.mp3'; a.click();
   el.textContent = 'Pronto ✓ (veja em Downloads)' }
 
+function refazer(l) { let voz = l.vozid || PREFS.voz;
+  const lg = (l.lang || 'pt-BR').slice(0, 2);
+  sheet(`<h2>Mudar voz ou idioma</h2><p class="note" style="margin-top:-6px">${esc(l.titulo)}</p><span class="lab">Idioma da leitura</span>
+    <select class="inp" id="rlng">${[['pt', 'Português'], ['en', 'Inglês'], ['es', 'Espanhol'], ['fr', 'Francês'], ['it', 'Italiano'], ['de', 'Alemão']].map(([k, n]) => `<option value="${k}" ${k === lg ? 'selected' : ''}>${n}</option>`).join('')}</select>
+    <span class="lab">Voz</span>${vozesHTML(voz)}<button class="btn" id="rok">Refazer áudio</button><p class="note">O áudio é refeito em segundo plano; os primeiros minutos ficam prontos rápido.</p>`);
+  ligaVozes(v => voz = v);
+  $('#rok').onclick = async () => { const r = await gh(`/contents/entrada/refazer-${DEV}--${l.id}.json`, {method: 'PUT', body: JSON.stringify({message: 'refazer ' + l.id, content: b64txt(JSON.stringify({id: l.id, dev: DEV, voz, opts: {l: $('#rlng').value}}))})});
+    closeSheet(); toast(r.ok ? 'Refazendo… em instantes o livro volta a aparecer' : 'Erro (' + r.status + ')'); if (r.ok) { if (cur?.livro.id === l.id) { au.pause(); cur = null; renderMini() } setTimeout(carregaLib, 4000) } } }
 function fraseDe(wi) { const w = words[wi], p = paras[w.p], txt = cur.dados.p[w.p].t; let a = 0, b = txt.length;
   for (const m of txt.matchAll(/[^.!?…]+[.!?…]*["”»’)]*\s*/g)) { if (m.index <= w.c && w.c < m.index + m[0].length) { a = m.index; b = m.index + m[0].length; break } }
   let w0 = wi, w1 = wi; while (w0 > 0 && words[w0 - 1].p === w.p && words[w0 - 1].c >= a) w0--; while (w1 < words.length - 1 && words[w1 + 1].p === w.p && words[w1 + 1].c < b) w1++;
