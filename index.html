@@ -161,11 +161,12 @@ input[type=range].fsr{width:100%}
   <input id="tok" class="inp" placeholder="github_pat_..." autocomplete="off">
   <button class="btn" id="tokok">Entrar</button>
   <p class="note">A chave fica salva só neste aparelho.</p>
+  <button class="btn2 hide" id="binst2">Instalar app na tela inicial</button>
 </section>
 
 <!-- biblioteca -->
 <section id="lib" class="hide">
-  <div class="top"><h1>Biblioteca</h1><button class="ibtn" id="bset" aria-label="Ajustes"><svg><use href="#i-gear"/></svg></button></div>
+  <div class="top"><h1>Biblioteca</h1><div style="display:flex;gap:8px"><button class="ibtn hide" id="binst" style="width:auto;padding:0 14px;border-radius:99px;font-weight:600;font-size:13px">Instalar app</button><button class="ibtn" id="bset" aria-label="Ajustes"><svg><use href="#i-gear"/></svg></button></div></div>
   <div id="grid" class="grid"></div>
 </section>
 <button class="fab hide" id="fab"><svg><use href="#i-plus"/></svg>Adicionar</button>
@@ -537,6 +538,12 @@ $('#tokok').onclick = async () => { const t = $('#tok').value.trim(); if (!t) re
   const r = await fetch(API, {headers: {Authorization: 'Bearer ' + t}}); if (!r.ok) { TOKEN = ''; return toast('Chave inválida ou sem acesso ao audiolivros-dados') }
   LS.set('token', t); $('#setup').classList.add('hide'); inicia() };
 document.addEventListener('visibilitychange', () => { if (document.hidden) salvaPos(); else if (TOKEN) carregaLib(true) });
+let instEv = null;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); instEv = e; ['#binst', '#binst2'].forEach(x => $(x).classList.remove('hide')) });
+addEventListener('appinstalled', () => { ['#binst', '#binst2'].forEach(x => $(x).classList.add('hide')); toast('App instalado ✓') });
+const instalar = async () => { if (instEv) { instEv.prompt(); await instEv.userChoice; instEv = null } else toast('No Chrome: ⋮ › Adicionar à tela inicial › Instalar', 5000) };
+$('#binst').onclick = $('#binst2').onclick = instalar;
+if (!matchMedia('(display-mode: standalone)').matches) setTimeout(() => ['#binst', '#binst2'].forEach(x => $(x).classList.remove('hide')), 3000);
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 inicia();
 </script>
