@@ -434,19 +434,22 @@ function abreAdicionar(pre = {}) {
     <div data-p="link"><input class="inp" id="url" type="url" placeholder="https://… (matéria, artigo, blog)"></div>
     <div data-p="texto"><input class="inp" id="ttl" placeholder="Título" style="margin-bottom:8px"><textarea class="inp" id="txa" rows="6" placeholder="Cole o texto aqui"></textarea></div>
     <span class="lab">Voz da narração</span>${vozesHTML(voz)}
+    <span class="lab">Idioma do texto</span>
+    <select class="inp" id="lng"><option value="">Detectar automaticamente</option><option value="pt">Português</option><option value="en">Inglês</option><option value="es">Espanhol</option><option value="fr">Francês</option><option value="it">Italiano</option><option value="de">Alemão</option></select>
     <span class="lab">Voz nos diálogos (falas com — ou aspas)</span>
     <select class="inp" id="dvz"><option value="">Mesma voz do narrador</option>${dialOpts}</select>
     <label class="row" style="border:0;padding:12px 2px"><input type="checkbox" id="acad"><div class="grow">Artigo científico<small>Remove referências [1], citações, legendas e a bibliografia (PDF já faz sozinho)</small></div></label>
     <button class="btn" id="env">Converter em audiolivro</button>
-    <p class="note">Livros em inglês ou espanhol ganham voz no idioma certo automaticamente. A conversão continua mesmo com o app fechado.</p>`);
+    <p class="note">Em outro idioma, a narração usa uma voz nativa daquele idioma (feminina ou masculina, conforme a voz escolhida). A conversão continua mesmo com o app fechado.</p>`);
   const mostra = a => { aba = a; $('#sh').querySelectorAll('[data-a]').forEach(b => b.classList.toggle('sel', b.dataset.a === a)); $('#sh').querySelectorAll('[data-p]').forEach(d => d.classList.toggle('hide', d.dataset.p !== a)) };
   $('#sh').querySelectorAll('[data-a]').forEach(b => b.onclick = () => mostra(b.dataset.a)); mostra(aba);
   const mostraArq = () => { if (!arq) return; $('#fn').textContent = arq.name; $('#fsz').textContent = (arq.size / 1048576).toFixed(1) + ' MB' };
   mostraArq(); if (pre.url) $('#url').value = pre.url; if (pre.texto) { $('#txa').value = pre.texto; $('#ttl').value = pre.titulo || '' }
+  if (PREFS.lng) $('#lng').value = PREFS.lng;
   ligaVozes(v => voz = v);
   $('#fi').onchange = e => { arq = e.target.files[0]; mostraArq() };
   $('#env').onclick = async () => {
-    const opts = {d: $('#dvz').value, a: $('#acad').checked ? '1' : ''}, b = $('#env');
+    const opts = {d: $('#dvz').value, a: $('#acad').checked ? '1' : '', l: $('#lng').value}; PREFS.lng = opts.l; savePrefs(), b = $('#env');
     let nome, ext, b64;
     if (aba === 'arquivo') { if (!arq) return toast('Escolha um arquivo');
       if (!EXTS.test(arq.name)) return toast('Formato não suportado'); if (arq.size > 70 * 1048576) return toast('Arquivo grande demais (máx. 70 MB)');
