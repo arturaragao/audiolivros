@@ -282,7 +282,7 @@ async function carregaLib(silent) {
     LIVROS = ri.ok ? await ri.json() : [];
     const fs = rf.ok ? await rf.json() : [];
     const nomes = fs.map(f => f.name);
-    FILA = fs.filter(f => (/\.(epub|pdf|docx|txt|md|mobi|azw3|azw|fb2|url)$/i.test(f.name) || /\.falhou$/.test(f.name)) && (DEV === 'principal' ? f.name.split('__').length < 3 : f.name.startsWith(DEV + '__'))).map(f => ({nome: f.name, falhou: /\.falhou$/.test(f.name), errotxt: nomes.includes(f.name.replace(/\.falhou$/, '') + '.erro.txt') ? f.name.replace(/\.falhou$/, '') + '.erro.txt' : null}));
+    FILA = fs.filter(f => (/\.(epub|pdf|docx|txt|md|mobi|azw3|azw|fb2|url)$/i.test(f.name) || /\.falhou$/.test(f.name)) && (DEV === 'principal' ? VOZES.some(v => f.name.startsWith(v.id + '__')) || f.name.split('__').length < 3 : f.name.startsWith(DEV + '__'))).map(f => ({nome: f.name, falhou: /\.falhou$/.test(f.name), errotxt: nomes.includes(f.name.replace(/\.falhou$/, '') + '.erro.txt') ? f.name.replace(/\.falhou$/, '') + '.erro.txt' : null}));
     LS.set('cache.lib', {LIVROS, FILA});
   } catch (e) { const c = LS.get('cache.lib', null); if (c) ({LIVROS, FILA} = c); if (!silent) toast('Sem conexão — mostrando o que está salvo') }
   renderLib();
@@ -434,7 +434,7 @@ function abreAdicionar(pre = {}) {
     b.disabled = true; b.innerHTML = '<span class="spin"></span> Enviando…'; PREFS.voz = voz; savePrefs();
     const r = await enviaEntrada(nome, ext, b64, voz, opts);
     if (r.ok) { closeSheet(); toast('Enviado! A conversão já começou.'); setTimeout(carregaLib, 1500) }
-    else { b.disabled = false; b.textContent = 'Tentar de novo'; toast('Erro ao enviar (' + r.status + ')' + (r.status === 422 ? ': já existe um com esse nome' : '')) }
+    else { b.disabled = false; b.textContent = 'Tentar de novo'; toast(r.status === 422 ? 'Esse arquivo já foi enviado e está na fila — puxe a biblioteca para baixo para ver.' : 'Erro ao enviar (' + r.status + ')') }
   };
 }
 $('#fab').onclick = () => abreAdicionar();
