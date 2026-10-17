@@ -294,8 +294,7 @@ async function carregaLib(silent) {
     const [ri, rf] = await Promise.all([raw(BASE + '/index.json'), gh('/contents/entrada')]);
     LIVROS = ri.ok ? await ri.json() : [];
     const apag = LS.get('apagados', {}), agora = Date.now();
-    for (const id in apag) if (agora - apag[id] > 30 * 60000 || !LIVROS.some(l => l.id === id)) delete apag[id];
-    LS.set('apagados', apag); LIVROS = LIVROS.filter(l => !apag[l.id]);
+    LIVROS = LIVROS.filter(l => !apag[l.id] && !/\.(erro|falhou)\b/i.test(l.titulo));  // apagou = some de vez
     const fs = rf.ok ? await rf.json() : [];
     const nomes = fs.map(f => f.name);
     FILA = fs.filter(f => (/\.(epub|pdf|docx|txt|md|mobi|azw3|azw|fb2|url)$/i.test(f.name) || /\.falhou$/.test(f.name)) && (DEV === 'principal' ? (VOZES.some(v => f.name.startsWith(v.id + '__')) || f.name.startsWith('c-')) || f.name.split('__').length < 3 : f.name.startsWith(DEV + '__'))).map(f => ({nome: f.name, falhou: /\.falhou$/.test(f.name), errotxt: nomes.includes(f.name.replace(/\.falhou$/, '') + '.erro.txt') ? f.name.replace(/\.falhou$/, '') + '.erro.txt' : null}));
@@ -419,6 +418,7 @@ function ligaVozes(onSel) {
 const EXTS = /\.(epub|pdf|docx|txt|md|mobi|azw3|azw|fb2)$/i;
 function nomeSeguro(n) { return n.replace(EXTS, '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w-]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 70) || 'livro' }
 async function enviaEntrada(nome, ext, b64, voz, opts) {
+  { const a = LS.get('apagados', {}), n = nomeSeguro(nome).toLowerCase().replace(/[^a-z0-9]/g, ''); for (const id in a) if (id.replace(/[^a-z0-9]/g, '').startsWith(n.slice(0, 20)) || n.startsWith(id.replace(/[^a-z0-9]/g, '').slice(0, 20))) delete a[id]; LS.set('apagados', a) }
   const o = Object.entries(opts).filter(([, v]) => v).map(([k, v]) => k + '-' + v).join('.');
   const path = `entrada/${DEV === 'principal' ? '' : DEV + '__'}${voz}__${o ? 'o-' + o + '__' : ''}${nomeSeguro(nome)}.${ext}`;
   return gh('/contents/' + encodeURI(path), {method: 'PUT', body: JSON.stringify({message: 'novo: ' + nome, content: b64})});
