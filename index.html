@@ -532,6 +532,12 @@ function renderTexto(d) {
       if (p.h) el.innerHTML = p.h; else el.textContent = p.t;
       // embrulha as palavras faladas sem mexer na formatação
       const w = p.w, alvos = []; for (let k = 0; k < w.length; k += 3) alvos.push([w[k], w[k + 1], w[k + 2]]);
+      // palavras sem tempo (não faladas ou não alinhadas) também viram <w>, para poder selecionar
+      { const ocup = alvos.map(a => [a[0], a[1]]); let tp = p.s ?? 0, ai2 = 0; const extra = [];
+        for (const m of p.t.matchAll(/[\p{L}\p{N}][\p{L}\p{N}'’\-]*/gu)) { const a = m.index, b = a + m[0].length;
+          while (ai2 < alvos.length && alvos[ai2][0] <= a) { tp = alvos[ai2][2]; ai2++ }
+          if (!ocup.some(([x, y]) => a < y && b > x)) extra.push([a, b, tp, 1]) }
+        if (extra.length) { alvos.push(...extra); alvos.sort((x, y) => x[0] - y[0]) } }
       if (alvos.length) {
         const nos = []; const tw = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); let n, off = 0;
         while ((n = tw.nextNode())) { nos.push([n, off]); off += n.data.length }
@@ -544,7 +550,7 @@ function renderTexto(d) {
           for (const [a, b, k, inicio] of cortes) {
             if (a > pos) ff.append(no.data.slice(pos, a));
             const sp = document.createElement('w'); sp.textContent = no.data.slice(a, b);
-            if (inicio) { sp.dataset.i = words.length; words.push({t: alvos[k][2], el: sp, p: i, c: alvos[k][0]}) } else sp.dataset.i = words.length - 1;
+            if (inicio) { sp.dataset.i = words.length; words.push({t: alvos[k][2], el: sp, p: i, c: alvos[k][0], nt: alvos[k][3]}) } else sp.dataset.i = words.length - 1;
             ff.append(sp); pos = b }
           if (pos < no.data.length) ff.append(no.data.slice(pos));
           pai.replaceChild(ff, no);
@@ -559,7 +565,7 @@ function renderTexto(d) {
 async function carregaCSS() { const l = cur?.livro; let st = $('#epubcss'); if (!st) { st = document.createElement('style'); st.id = 'epubcss'; document.head.append(st) }
   if (!l?.css) { st.textContent = ''; st.dataset.id = ''; return } if (st.dataset.id === l.id) return;
   try { st.textContent = await (await cached(`${BASE}/${l.id}/${l.css}`, l.criado)).text(); st.dataset.id = l.id } catch {} }
-function busca(t) { let lo = 0, hi = words.length - 1, r = -1; while (lo <= hi) { const m = lo + hi >> 1; if (words[m].t <= t + 0.05) { r = m; lo = m + 1 } else hi = m - 1 } return r }
+function busca(t) { let lo = 0, hi = words.length - 1, r = -1; while (lo <= hi) { const m = lo + hi >> 1; if (words[m].t <= t + 0.05) { r = m; lo = m + 1 } else hi = m - 1 } while (r > 0 && words[r].nt) r--; return r }
 function sync(force) {
   const t = au.currentTime, i = busca(t);
   if (i !== wIdx) { words[wIdx]?.el.classList.remove('on'); wIdx = i; if (i >= 0) words[i].el.classList.add('on') }
