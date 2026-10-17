@@ -745,7 +745,8 @@ function refazer(l) { let voz = l.vozid || PREFS.voz;
     <select class="inp" id="rlng">${[['pt', 'Português'], ['en', 'Inglês'], ['es', 'Espanhol'], ['fr', 'Francês'], ['it', 'Italiano'], ['de', 'Alemão']].map(([k, n]) => `<option value="${k}" ${k === lg ? 'selected' : ''}>${n}</option>`).join('')}</select>
     <span class="lab">Voz</span>${vozesHTML(voz)}<button class="btn" id="rok">Refazer áudio</button><p class="note">O áudio é refeito em segundo plano; os primeiros minutos ficam prontos rápido.</p>`);
   ligaVozes(v => voz = v);
-  $('#rok').onclick = async () => { const r = await gh(`/contents/entrada/refazer-${DEV}--${l.id}.json`, {method: 'PUT', body: JSON.stringify({message: 'refazer ' + l.id, content: b64txt(JSON.stringify({id: l.id, dev: DEV, voz, opts: {l: $('#rlng').value}}))})});
+  $('#rok').onclick = async () => { const pth = `/contents/entrada/refazer-${DEV}--${l.id}.json`, ex = await gh(pth), sha = ex.ok ? (await ex.json()).sha : undefined;
+    const r = await gh(pth, {method: 'PUT', body: JSON.stringify({message: 'refazer ' + l.id, sha, content: b64txt(JSON.stringify({id: l.id, dev: DEV, voz, opts: {l: $('#rlng').value}}))})});
     closeSheet(); toast(r.ok ? 'Refazendo… em instantes o livro volta a aparecer' : 'Erro (' + r.status + ')'); if (r.ok) { if (cur?.livro.id === l.id) { au.pause(); cur = null; renderMini() } setTimeout(carregaLib, 4000) } } }
 function fraseDe(wi) { const w = words[wi], p = paras[w.p], txt = cur.dados.p[w.p].t; let a = 0, b = txt.length;
   for (const m of txt.matchAll(/[^.!?…]+[.!?…]*["”»’)]*\s*/g)) { if (m.index <= w.c && w.c < m.index + m[0].length) { a = m.index; b = m.index + m[0].length; break } }
