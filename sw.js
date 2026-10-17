@@ -1,4 +1,4 @@
-const V = 'ouvir-app-v7', SHELL = ['./', 'index.html', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png'];
+const V = 'ouvir-app-v8', SHELL = ['./', 'index.html', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL))); self.skipWaiting() });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('ouvir-app') && k !== V).map(k => caches.delete(k))))); self.clients.claim() });
 self.addEventListener('fetch', e => {

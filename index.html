@@ -71,6 +71,8 @@ svg{width:24px;height:24px;fill:currentColor;flex:none}
 #wmenu button{display:flex;align-items:center;gap:6px;padding:10px 14px;color:var(--bg);font-weight:600;font-size:14px}
 #wmenu svg{width:18px;height:18px;fill:var(--bg)}
 #txt{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#txt ruby{ruby-position:over}
+#txt rt.ww{font:500 .52em/1.1 Inter,sans-serif;color:var(--tx2);letter-spacing:0;user-select:none}
 #txt w[data-mk]{background:var(--mk);color:#1a1a1a;border-radius:0}
 #txt w.sel{background:var(--hl)!important;color:#fff!important}
 #wmenu .wcores{display:flex;gap:8px;padding:10px 12px;align-items:center;border-bottom:1px solid rgba(128,128,128,.35)}
@@ -891,6 +893,33 @@ const _bset2 = $('#bset').onclick;
 $('#bset').onclick = async () => { await _bset2(); $('#a-pr').insertAdjacentHTML('beforebegin', `<button class="row" id="a-vo"><div class="grow">⭐ Meu vocabulário<small>Palavras salvas do dicionário e tradutor, com revisão em cartões</small></div></button><button class="row" id="a-tx"><div class="grow">👁️ Texto e conforto visual</div></button>`);
   $('#a-vo').onclick = abreVocab; $('#a-tx').onclick = abreTexto };
 applyPrefs();
+
+/* --- Word Wise --- */
+PREFS.ww ??= 1; PREFS.wwNivel ??= 3;  // nível 1 (poucas dicas) a 5 (muitas)
+const WW_CORTE = [0, 30, 33, 35, 37, 40];
+function aplicaWW() {
+  document.querySelectorAll('#txt rt.ww').forEach(r => { const rb = r.parentElement; rb.replaceWith(rb.firstChild.textContent) });
+  if (!PREFS.ww || !cur?.dados) return; const corte = WW_CORTE[PREFS.wwNivel];
+  cur.dados.p.forEach((p, pi) => { if (!p.g) return; const pal = paras[pi].el.querySelectorAll('w');
+    for (let k = 0; k < p.g.length; k += 3) { if (p.g[k + 1] >= corte) continue;
+      const w = [...pal].find(x => words[+x.dataset.i].c === p.g[k]); if (!w || w.querySelector('ruby')) continue;
+      const t = w.textContent; w.innerHTML = `<ruby>${esc(t)}<rt class="ww">${esc(p.g[k + 2])}</rt></ruby>` } });
+}
+const _renderTexto = renderTexto;
+renderTexto = d => { _renderTexto(d); if (cur) cur.dados = d; aplicaWW() };
+// versão do JSON muda quando o Word Wise é adicionado depois → força baixar de novo
+const _cached = cached;
+cached = (p, ver, tipo) => _cached(p, /\/cap_\d+\.json$/.test(p) && cur?.livro?.ww ? ver + '-' + cur.livro.ww : ver, tipo);
+const _abreTexto = abreTexto;
+abreTexto = () => { _abreTexto(); const l = cur?.livro; if (!l) return;
+  $('#sh').insertAdjacentHTML('beforeend', `<span class="lab">📖 Word Wise (dicas em português nas palavras difíceis do inglês)</span>
+    ${l.idioma !== 'en' ? '<p class="note">Disponível em livros em inglês.</p>' : !l.ww ? '<button class="btn2" id="wwon">Ativar Word Wise neste livro</button><p class="note">Leva alguns minutos; não refaz o áudio.</p>'
+    : `<div class="pills"><button id="wwt" class="${PREFS.ww ? 'sel' : ''}">${PREFS.ww ? 'Ligado' : 'Desligado'}</button></div><span class="lab">Quantidade de dicas <b id="wwnv">${PREFS.wwNivel}</b></span><input type="range" class="fsr" id="wwn" min="1" max="5" value="${PREFS.wwNivel}">`}`);
+  $('#wwon') && ($('#wwon').onclick = async () => { const r = await gh(`/contents/entrada/wordwise-${DEV}--${l.id}.json`, {method: 'PUT', body: JSON.stringify({message: 'wordwise ' + l.id, content: b64txt(JSON.stringify({id: l.id, dev: DEV}))})});
+    toast(r.ok ? 'Pedido enviado. Reabra o livro em alguns minutos.' : 'Erro (' + r.status + ')'); closeSheet() });
+  $('#wwt') && ($('#wwt').onclick = () => { PREFS.ww = PREFS.ww ? 0 : 1; savePrefs(); aplicaWW(); abreTexto() });
+  $('#wwn') && ($('#wwn').oninput = e => { PREFS.wwNivel = +e.target.value; $('#wwnv').textContent = e.target.value; savePrefs(); aplicaWW() }) };
+$('#taa').onclick = abreTexto;
 
 /* ---------- início ---------- */
 async function inicia() {
