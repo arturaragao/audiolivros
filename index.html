@@ -1118,10 +1118,81 @@ const _bset3 = $('#bset').onclick;
 $('#bset').onclick = async () => { await _bset3(); $('#a-vo').insertAdjacentHTML('beforebegin', `<button class="row" id="a-mv"><div class="grow">🎙️ Minhas vozes<small>Grave sua voz e ouça livros com ela</small></div></button>`); $('#a-mv').onclick = abreMinhas };
 
 /* --- treino completo da voz: gravações longas com o texto conhecido --- */
-const ESPECIAIS = ['Em 2024, cerca de 1.250 pessoas participaram; 37% eram mulheres.', 'O capítulo 12 começa na página 248 e termina na 301.', 'Ele nasceu em 15 de março de 1987, às 7h45 da manhã.', 'A dose foi de 2,5 miligramas, três vezes ao dia, durante 14 dias.', 'Primeiro, segundo, terceiro, décimo e vigésimo primeiro lugar.', 'O lote custou R$ 3.499,90, parcelado em 12 vezes.', 'Zero, um, dois, três, quatro, cinco, seis, sete, oito, nove, dez.', 'Onze, doze, treze, quatorze, quinze, dezesseis, dezessete, dezoito, dezenove, vinte.', 'Cem, duzentos, quinhentos, mil, dez mil, um milhão.',
-  'Como escreveu Shakespeare em Hamlet: to be or not to be, that is the question.', 'O livro The Pragmatic Programmer, de Andrew Hunt e David Thomas, é um clássico.', 'Ela trabalhava no Google e depois foi para a Microsoft, em Seattle.', 'O artigo foi publicado na revista Radiology, do Radiological Society of North America.', 'Steve Jobs apresentou o iPhone em janeiro de dois mil e sete, em San Francisco.', 'The quick brown fox jumps over the lazy dog.', 'Machine learning, deep learning e artificial intelligence viraram palavras comuns.',
-  'Você tem certeza? Mesmo? Então tá bom, vamos nessa!', 'Não! Espera! Eu esqueci a chave em cima da mesa...', 'Hmm, deixa eu pensar... acho que foi na terça-feira, não na quarta.', 'Ele sussurrou: fica quieto, alguém está vindo.', 'Parabéns! Você conseguiu, depois de tanto esforço!', 'Que pena. Eu realmente esperava um resultado diferente.',
-  'Ressonância magnética, tomografia computadorizada e ultrassonografia com Doppler.', 'Paralelepípedo, otorrinolaringologista e anticonstitucionalissimamente.', 'Exceção, excesso, exímio, exato, exausto e excêntrico.', 'Cinquenta e quatro, sessenta e sete, oitenta e nove, noventa e nove.'];
+/* --- gerador de frases do treino: infinitas, nunca repetem, escolhe a que cobre os sons menos gravados --- */
+const GERA = (() => {
+  const R = s => s.split('|');
+  const L = {
+    suj: R('A vizinha do terceiro andar|O professor de história|Minha avó|O motorista do ônibus|A enfermeira do plantão|Um garoto de bicicleta|O padeiro da esquina|A cantora portuguesa|O velho pescador|Nossa sobrinha mais nova|O jardineiro|A delegada|Um turista japonês|O cirurgião-chefe|A bibliotecária|O carteiro|A médica residente|O engenheiro|A dona da pousada|Um filhote de cachorro|O goleiro reserva|A arquiteta|O seu Joaquim|A Dona Conceição|O chef do restaurante|Um grupo de crianças|O porteiro do prédio|A juíza|O mecânico|A fotógrafa'),
+    vp: R('encontrou|guardou|esqueceu|consertou|escondeu|desenhou|devolveu|pintou|carregou|derrubou|vendeu|emprestou|achou|trouxe|perdeu|comprou|quebrou|limpou|embrulhou|jogou fora'),
+    obj: R('uma carta antiga|o relógio de bolso|três chaves enferrujadas|um guarda-chuva amarelo|a caixa de ferramentas|o retrato da família|um pote de geleia|as fotografias do casamento|o mapa da cidade|um livro de receitas|a xícara de porcelana|o violão desafinado|um cachecol de lã|a bússola do avô|o caderno de anotações|uma lanterna velha|os óculos escuros|a chaleira de cobre|um baú cheio de brinquedos|a gaiola vazia'),
+    lugar: R('no sótão da casa|perto da lagoa|atrás da igreja|embaixo da escada|no porta-malas do carro|na feira de domingo|dentro do armário|na beira da estrada|no corredor do hospital|ao lado da janela|no fundo da gaveta|na varanda|no galpão abandonado|em cima da geladeira|na estação de trem|no quintal dos fundos|no meio da praça|junto ao rio|na sala de espera|no alto da colina'),
+    tempo: R('numa tarde chuvosa de julho|logo depois do almoço|antes do sol nascer|na véspera do Natal|durante a tempestade|no último sábado do mês|quando ninguém estava olhando|enquanto todos dormiam|no primeiro dia de aula|ao final do expediente|bem no meio da madrugada|numa manhã de neblina|pouco antes do jantar|no dia do aniversário dela|durante as férias de janeiro'),
+    conj: R('mas|porque|enquanto|embora|e, mesmo assim,|só que|até que|então|quando de repente|apesar de que'),
+    cl2: R('ninguém percebeu a diferença|o cachorro começou a latir sem parar|a luz da cozinha se apagou|todos caíram na gargalhada|o telefone tocou três vezes|a chuva finalmente parou|o vento abriu a porta com força|alguém bateu palmas no portão|o trem atrasou mais de uma hora|a sirene tocou ao longe|o café esfriou em cima da mesa|as crianças voltaram correndo|o silêncio tomou conta da sala'),
+    interj: R('Olha só|Ai, meu Deus|Puxa vida|Nossa|Ei|Escuta aqui|Opa|Ué|Credo|Caramba|Ah, não|Uau|Calma|Peraí|Sério'),
+    perg: R('você viu onde eu deixei a chave do carro|quem foi que comeu o último pedaço de bolo|a que horas sai o próximo ônibus|por que ninguém me avisou antes|você acha que vai chover amanhã|onde fica a farmácia mais próxima|quanto custou esse sapato|desde quando você sabe disso|vamos ou não vamos viajar no feriado|alguém lembrou de alimentar o gato|você tem certeza absoluta|quem vai buscar as crianças na escola|o que aconteceu com a sua mão'),
+    emo: R('Que alegria ver você de novo!|Isso é inacreditável, eu não acredito!|Que tristeza, eu realmente esperava outra coisa.|Fica quieto, alguém está vindo...|Parabéns, você mereceu cada minuto!|Socorro, me ajuda aqui, rápido!|Que vergonha, eu tropecei na frente de todo mundo.|Hmm, deixa eu pensar um pouco...|Chega! Eu não aguento mais esse barulho!|Que saudade daquele tempo...|Ufa, ainda bem que deu tudo certo.|Eu juro que não fui eu!|Psiu, fala baixo, o bebê está dormindo.|Ah, que preguiça de levantar hoje.'),
+    en: R('Steve Jobs|Taylor Swift|Elon Musk|Bill Gates|Serena Williams|Oprah Winfrey|Mark Zuckerberg|Jeff Bezos|Meryl Streep|Tom Hanks|Michelle Obama|LeBron James'),
+    emp: R('Google|Microsoft|Amazon|Netflix|Apple|Spotify|Facebook|Starbucks|Coca-Cola|Nike|Disney|McDonald\'s'),
+    cid: R('New York|Los Angeles|Seattle|Chicago|Boston|San Francisco|London|Miami|Toronto|Las Vegas'),
+    ing: R('deep learning|machine learning|feedback|deadline|home office|smartphone|software|download|streaming|startup|marketing|workshop|check-up|playlist|weekend|happy hour|delivery|best-seller'),
+    enf: R('The quick brown fox jumps over the lazy dog.|To be or not to be, that is the question.|I would like a cup of coffee, please.|Where is the nearest train station?|Thank you very much for your help.|Better late than never.|Practice makes perfect.|Let me think about it for a second.|She sells seashells by the seashore.|How much does this book cost?'),
+    exame: R('A tomografia de abdome|A ressonância magnética do joelho|A ultrassonografia de tireoide|A radiografia de tórax|A angiotomografia|A mamografia|A tomografia de crânio|A ressonância da coluna lombar|O ecodoppler venoso|A colangiorressonância'),
+    achado: R('um nódulo hipoatenuante|uma imagem cística simples|um cálculo calcificado|uma área de consolidação|um linfonodo aumentado|uma lesão hipervascular|um derrame pleural laminar|uma hérnia discal extrusa|um espessamento parietal|uma coleção heterogênea'),
+    local: R('no lobo hepático direito|no polo superior do rim esquerdo|no segmento sete do fígado|na cauda do pâncreas|no lobo inferior esquerdo|na região periapendicular|no menisco medial|no lobo direito da tireoide|na transição toracolombar|no colédoco distal'),
+    mes: R('janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro'),
+    dia: R('segunda-feira|terça-feira|quarta-feira|quinta-feira|sexta-feira|sábado|domingo'),
+    coisa: R('cadeiras|livros|pacientes|garrafas|quilos de arroz|ingressos|degraus|caixas|parafusos|metros de tecido|folhas de papel|laranjas'),
+  };
+  const rng = s => () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296 };
+  const hash = t => { let h = 2166136261; for (const c of t) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return (h >>> 0).toString(36) };
+  const NOMES = R('Pedro|Ana|Lucas|Mariana|seu Antônio|Dona Lúcia|Rafael|Beatriz|Gustavo|Camila|Joãozinho|Helena|Thiago|Fernanda|vovó|doutor');
+  function cria(r, cat) {
+    const p = k => L[k][Math.floor(r() * L[k].length)], n = (a, b) => a + Math.floor(r() * (b - a + 1)), dec = () => `${n(0, 99)},${n(1, 9)}`;
+    const G = {N: [0, 1, 2], P: [3, 16], E: [4, 5, 17], X: [6, 7, 8, 9, 10], I: [11, 12, 13], M: [14, 15]};
+    const T = [
+      () => `${p('suj')} ${p('vp')} ${p('obj')} ${p('lugar')}, ${p('tempo')}.`,
+      () => `${p('suj')} ${p('vp')} ${p('obj')} ${p('lugar')}, ${p('conj')} ${p('cl2')}.`,
+      (tp = p('tempo')) => `${tp[0].toUpperCase() + tp.slice(1)}, ${p('suj').replace(/^./, c => c.toLowerCase())} ${p('vp')} ${p('obj')}, ${p('conj')} ${p('cl2')}.`,
+      () => `${p('interj')}, ${p('perg')}?`,
+      () => p('emo'),
+      () => `${p('interj')}! ${p('emo')}`,
+      () => `No dia ${n(1, 28)} de ${p('mes')} de ${n(1950, 2030)}, às ${n(0, 23)}h${String(n(0, 59)).padStart(2, '0')}, ${n(2, 980)} ${p('coisa')} chegaram.`,
+      () => `O total foi de R$ ${n(1, 9)}.${String(n(0, 999)).padStart(3, '0')},${String(n(0, 99)).padStart(2, '0')}, com desconto de ${n(2, 60)}% e ${n(2, 24)} parcelas.`,
+      () => `Na ${p('dia')}, ${n(2, 99)} ${p('coisa')} custavam ${dec()} reais cada, e sobraram ${n(1, 30)}.`,
+      () => `Ficou em ${n(1, 30)}º lugar entre ${n(31, 5000)} participantes, com ${dec()} pontos.`,
+      () => `Ligue para ${n(10, 99)} ${n(90000, 99999)}-${String(n(0, 9999)).padStart(4, '0')} entre ${n(7, 11)} e ${n(13, 19)} horas.`,
+      () => `${p('en')} falou sobre ${p('ing')} num evento da ${p('emp')} em ${p('cid')}.`,
+      () => `No meio da conversa sobre ${p('ing')}, ela disse em inglês: ${p('enf')}`,
+      () => `${p('en')} trabalhou na ${p('emp')} e depois abriu uma startup de ${p('ing')} em ${p('cid')}.`,
+      () => `${p('exame')} mostrou ${p('achado')} ${p('local')}, medindo ${n(1, 9)},${n(0, 9)} x ${n(1, 9)},${n(0, 9)} cm.`,
+      () => `${p('exame')} foi realizada em ${n(1, 28)} de ${p('mes')}; ${p('achado')} ${p('local')} permanece estável.`,
+      () => `${p('interj')}, ${NOMES[Math.floor(r() * NOMES.length)]}, ${p('perg')}?`,
+      () => `${p('emo')} ${p('interj')}, ${p('perg')}?`,
+    ];
+    const g = G[cat] || G.N; return T[g[Math.floor(r() * g.length)]]();
+  }
+  /* sons que mais pesam no aprendizado da voz (fonemas e encontros do português) */
+  const FEAT = ['lh', 'nh', 'rr', 'ch', 'ç', 'x', 'ão', 'õe', 'ãe', 'ã', 'õ', 'am\\b', 'em\\b', 'im', 'om', 'um', 'an', 'en', 'in', 'on', 'un', 'gu', 'qu', 'ê', 'ô', 'é', 'ó', 'á', 'í', 'ú', 'r\\b', 'l\\b', 's\\b', 'z', 'j', 'g[ei]', 'c[ei]', '[bcdfgptv]r', '[bcfgp]l', 'ss', 'sc', 'x[aeiou]', 'ti', 'di', '\\d', '[?!]', '[a-z]{11,}'].map(f => new RegExp(f, 'gi'));
+  const feats = t => { const o = {}; FEAT.forEach((re, k) => { const m = t.match(re); if (m) o[k] = m.length }); return o };
+  const chave = vid => 'treino.gen.' + vid;
+  const est = vid => LS.get(chave(vid), {cnt: {}, pal: {}, usadas: {}, por: {}});
+  function frase(vid, i) {
+    const e = est(vid); if (e.por[i]) return e.por[i];
+    let melhor = null, nota = -1; const cat = 'NPXENIMPNXEINPM'[i % 15];
+    for (let k = 0; k < 8; k++) { // 8 candidatas, fica a que traz mais sons/palavras pouco gravados
+      const t = cria(rng((parseInt(hash(vid), 36) ^ (i * 2654435761)) + k * 7919), cat); if (e.usadas[hash(t)]) continue;
+      const f = feats(t); let s = 0; for (const x in f) s += Math.min(f[x], 3) / (1 + (e.cnt[x] || 0) / 4);
+      for (const w of t.toLowerCase().match(/[a-zà-ú]{4,}/g) || []) if (!e.pal[w]) s += .4;
+      s += Math.min(t.length, 160) / 160; if (s > nota) { nota = s; melhor = t } }
+    for (let k = 0; !melhor && k < 50; k++) { const t = cria(rng(i * 31337 + k * 101 + Date.now()), 'N'); if (!e.usadas[hash(t)]) melhor = t }
+    e.usadas[hash(melhor)] = 1; e.por[i] = melhor;
+    for (const k in e.por) if (k < i - 60) delete e.por[k];
+    LS.set(chave(vid), e); return melhor }
+  function conta(vid, t) { const e = est(vid), f = feats(t); for (const x in f) e.cnt[x] = (e.cnt[x] || 0) + f[x];
+    for (const w of t.toLowerCase().match(/[a-zà-ú]{4,}/g) || []) e.pal[w] = 1; LS.set(chave(vid), e) }
+  return {frase, conta};
+})();
 function abreTreino(v) {
   const meta = LS.get('treino.' + v.vid, {fonte: 'especiais', livro: null, cap: 0, par: 0, i: 0, s: 0}); meta.s ??= 0;
   const salvaMeta = () => LS.set('treino.' + v.vid, meta), cp = o => JSON.parse(JSON.stringify(o));
@@ -1132,7 +1203,7 @@ function abreTreino(v) {
   function frases(t) { const out = []; for (const p of (t.match(/[^.!?…]+[.!?…]+["”»')\]]*\s*|[^.!?…]+$/g) || [t])) { const x = p.trim(); if (!x) continue;
       if (out.length && (out[out.length - 1].length < 25 || x.length < 12)) out[out.length - 1] += ' ' + x; else out.push(x) } return out }
   async function resolve(pos) { // normaliza a posição e devolve o texto dela
-    if (pos.fonte === 'especiais') return ESPECIAIS[pos.i % ESPECIAIS.length];
+    if (pos.fonte === 'especiais') return GERA.frase(v.vid, pos.i);
     const l = LIVROS.find(x => x.id === pos.livro); if (!l) { pos.fonte = 'especiais'; return resolve(pos) }
     const m = await livroMeta(l);
     for (let tent = 0; tent < 600; tent++) { const c = m.capitulos[pos.cap % m.capitulos.length], d = await cached(`${BASE}/${l.id}/${c.arq}.json`, m.criado, 'json'), p = d.p[pos.par];
@@ -1169,7 +1240,7 @@ function abreTreino(v) {
   function fechaRec(salvar) { const r = rec; if (!r) return; rec = null; const dur = (Date.now() - t0) / 1000, txt = texto;
     r.onstop = () => { if (!salvar) return; const b = new Blob(r._ch, {type: r.mimeType}), id = Date.now(), ext = b.type.includes('mp4') ? 'm4a' : 'webm';
       if (h.desfeito) return; const j = {blob: b, dur, texto: txt, pa: `${dir}/t_${id}.${ext}`, pt: `${dir}/t_${id}.txt`}; h.job = j; enfileira(j) };
-    const h = {meta: cp(meta), texto: txt, dur}; if (salvar) { hist.push(h); total += dur; if (hist.length > 50) hist.shift() }
+    const h = {meta: cp(meta), texto: txt, dur}; if (salvar) { hist.push(h); total += dur; GERA.conta(v.vid, txt); if (hist.length > 50) hist.shift() }
     try { r.stop() } catch {} }
   async function comeca() { if (stream) return;
     try { stream = await navigator.mediaDevices.getUserMedia({audio: {noiseSuppression: false, echoCancellation: false, autoGainControl: false, channelCount: 1}}) } catch { return toast('Permita o microfone') }
@@ -1185,7 +1256,7 @@ function abreTreino(v) {
     Object.assign(meta, h.meta); await mostra(); if (stream) novoRec(); toast('Voltou uma frase — leia de novo', 1600); status() }
   sheet(`<h2>🎓 Treino completo — ${esc(v.nome)}</h2>
     <span class="lab">Progresso: <b id="tmin">0</b> de 30 min</span><div style="height:8px;background:var(--bg3);border-radius:8px;overflow:hidden"><div id="tbar" style="height:100%;width:0;background:var(--hl)"></div></div>
-    <span class="lab">O que ler</span><div class="pills" id="tfon"><button data-f="1" class="${meta.fonte === 'especiais' ? 'sel' : ''}">Números, inglês e emoções</button>${LIVROS.filter(l => l.pronto).slice(0, 6).map(l => `<button data-l="${esc(l.id)}" class="${meta.livro === l.id && meta.fonte === 'livro' ? 'sel' : ''}">${esc(l.titulo.slice(0, 28))}</button>`).join('')}</div>
+    <span class="lab">O que ler</span><div class="pills" id="tfon"><button data-f="1" class="${meta.fonte === 'especiais' ? 'sel' : ''}">Frases novas (nunca repetem)</button>${LIVROS.filter(l => l.pronto).slice(0, 6).map(l => `<button data-l="${esc(l.id)}" class="${meta.livro === l.id && meta.fonte === 'livro' ? 'sel' : ''}">${esc(l.titulo.slice(0, 28))}</button>`).join('')}</div>
     <div id="tbx" style="background:var(--bg3);padding:14px;border-radius:14px;margin-top:14px;cursor:pointer;user-select:none;-webkit-user-select:none;min-height:180px;touch-action:manipulation">
       <div id="tant" style="font:14px/1.4 var(--ff);opacity:.35;margin-bottom:8px"></div>
       <div id="tatual" style="font:21px/1.55 var(--ff);font-weight:500"></div>
@@ -1193,7 +1264,7 @@ function abreTreino(v) {
       <div style="text-align:center;font-size:12px;opacity:.6;margin-top:12px">toque aqui ao terminar a frase →</div></div>
     <p id="tst" style="text-align:center;font-size:14px;margin:8px 0"></p>
     <div style="display:flex;gap:8px"><button class="btn" id="tgo" style="margin:0;flex:1.4">● Começar</button><button class="btn2" id="tref" style="margin:0;flex:1">↺ Refazer</button><button class="btn2" id="tvol" style="margin:0;flex:1">↩ Voltar</button></div>
-    <p class="note">Toque em <b>Começar</b> e leia a frase destacada. Terminou? <b>Toque no texto</b>: ela é salva e já começa a próxima. Errou no meio? <b>Refazer</b> regrava a frase atual. Tocou cedo demais? <b>Voltar</b> apaga a última e repete. Termos em inglês: pronuncie em inglês.</p>`);
+    <p class="note">Toque em <b>Começar</b> e leia a frase destacada. Terminou? <b>Toque no texto</b>: ela é salva e já começa a próxima. Errou no meio? <b>Refazer</b> regrava a frase atual. Tocou cedo demais? <b>Voltar</b> apaga a última e repete. Termos em inglês: pronuncie em inglês. As frases novas são infinitas e escolhidas para cobrir os sons que você ainda gravou pouco; ler um livro também ajuda (ritmo de narração).</p>`);
   fimSheet = () => { vivo = false; pausa() };
   $('#tbx').onclick = proxima; $('#tgo').onclick = () => stream ? pausa() : comeca(); $('#tref').onclick = refaz; $('#tvol').onclick = volta;
   $('#tfon').querySelectorAll('button').forEach(b => b.onclick = async () => { if (rec) fechaRec(false);
