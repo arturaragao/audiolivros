@@ -380,8 +380,9 @@ async function baixaLivro(l, el) {
 
 /* ---------- folhas ---------- */
 let ignoraPop = 0;
-function sheet(html) { const sh = $('#sh'); if (!sh.classList.contains('on')) history.pushState({sh: 1}, ''); sh.innerHTML = html; sh.scrollTop = 0; sh.style.transform = ''; sh.classList.add('on'); $('#veil').classList.add('on') }
-function escondeSheet() { $('#sh').classList.remove('on'); $('#sh').style.transform = ''; $('#veil').classList.remove('on'); prevAu.pause() }
+let fimSheet = null;
+function sheet(html) { if (fimSheet) { const f = fimSheet; fimSheet = null; f() } const sh = $('#sh'); if (!sh.classList.contains('on')) history.pushState({sh: 1}, ''); sh.innerHTML = html; sh.scrollTop = 0; sh.style.transform = ''; sh.classList.add('on'); $('#veil').classList.add('on') }
+function escondeSheet() { if (fimSheet) { const f = fimSheet; fimSheet = null; f() } $('#sh').classList.remove('on'); $('#sh').style.transform = ''; $('#veil').classList.remove('on'); prevAu.pause() }
 function closeSheet() { if (!$('#sh').classList.contains('on')) return; escondeSheet(); if (history.state?.sh) { ignoraPop++; history.back() } }
 /* arrastar a folha para baixo fecha */
 (() => { const sh = $('#sh'); let y0 = null, dy = 0;
@@ -1122,48 +1123,84 @@ const ESPECIAIS = ['Em 2024, cerca de 1.250 pessoas participaram; 37% eram mulhe
   'Você tem certeza? Mesmo? Então tá bom, vamos nessa!', 'Não! Espera! Eu esqueci a chave em cima da mesa...', 'Hmm, deixa eu pensar... acho que foi na terça-feira, não na quarta.', 'Ele sussurrou: fica quieto, alguém está vindo.', 'Parabéns! Você conseguiu, depois de tanto esforço!', 'Que pena. Eu realmente esperava um resultado diferente.',
   'Ressonância magnética, tomografia computadorizada e ultrassonografia com Doppler.', 'Paralelepípedo, otorrinolaringologista e anticonstitucionalissimamente.', 'Exceção, excesso, exímio, exato, exausto e excêntrico.', 'Cinquenta e quatro, sessenta e sete, oitenta e nove, noventa e nove.'];
 function abreTreino(v) {
-  const meta = LS.get('treino.' + v.vid, {fonte: 'especiais', livro: null, cap: 0, par: 0, i: 0});
-  let rec = null, chunks = [], t0 = 0, textoAtual = '';
-  const salvaMeta = () => LS.set('treino.' + v.vid, meta);
-  async function proximoTexto() {
-    if (meta.fonte === 'especiais') { textoAtual = ESPECIAIS[meta.i % ESPECIAIS.length]; return }
-    const l = LIVROS.find(x => x.id === meta.livro); if (!l) { meta.fonte = 'especiais'; return proximoTexto() }
-    const m = await livroMeta(l); for (let tent = 0; tent < 400; tent++) {
-      const c = m.capitulos[meta.cap % m.capitulos.length]; const d = await cached(`${BASE}/${l.id}/${c.arq}.json`, m.criado, 'json');
-      const p = d.p[meta.par]; if (!p) { meta.cap++; meta.par = 0; continue }
-      if (p.t && p.t.length > 40 && p.t.length < 600 && p.w.length) { textoAtual = p.t; return } meta.par++ }
-  }
-  const avanca = () => { if (meta.fonte === 'especiais') meta.i++; else meta.par++; salvaMeta() };
-  async function desenha() {
-    await proximoTexto(); const min = (v.treino_s || 0) / 60, alvo = 30;
-    sheet(`<h2>🎓 Treino completo — ${esc(v.nome)}</h2>
-      <p class="note" style="margin-top:-6px">Para um treino de verdade, o ideal é <b>30 a 60 minutos</b> de leitura com o texto conhecido. Pode fazer aos poucos, em vários dias — o progresso fica salvo.</p>
-      <span class="lab">Progresso: <b>${min.toFixed(1)} min</b> de ${alvo} min</span><div style="height:8px;background:var(--bg3);border-radius:8px;overflow:hidden"><div style="height:100%;width:${Math.min(100, min / alvo * 100)}%;background:var(--hl)"></div></div>
-      <span class="lab">O que ler</span><div class="pills"><button data-f="especiais" class="${meta.fonte === 'especiais' ? 'sel' : ''}">Números, inglês e emoções</button>${LIVROS.filter(l => l.pronto).slice(0, 6).map(l => `<button data-l="${esc(l.id)}" class="${meta.livro === l.id && meta.fonte === 'livro' ? 'sel' : ''}">${esc(l.titulo.slice(0, 28))}</button>`).join('')}</div>
-      <p style="font:19px/1.55 var(--ff);background:var(--bg3);padding:14px;border-radius:14px;margin-top:14px">${esc(textoAtual)}</p>
-      <div style="display:flex;gap:10px"><button class="btn" id="trec" style="margin:0;flex:2">● Gravar</button><button class="btn2" id="tpula" style="margin:0;flex:1">Pular</button></div>
-      <p class="note">Leia exatamente o texto, no seu ritmo natural de leitura de livro. Errou? Pare, toque em Gravar de novo e repita o trecho. Termos em inglês: pronuncie em inglês.</p>`);
-    $('#sh').querySelectorAll('[data-f]').forEach(b => b.onclick = () => { meta.fonte = 'especiais'; salvaMeta(); desenha() });
-    $('#sh').querySelectorAll('[data-l]').forEach(b => b.onclick = () => { if (meta.livro !== b.dataset.l) { meta.livro = b.dataset.l; meta.cap = 0; meta.par = 0 } meta.fonte = 'livro'; salvaMeta(); desenha() });
-    $('#tpula').onclick = () => { avanca(); desenha() };
-    $('#trec').onclick = () => rec ? rec.stop() : grava();
-  }
-  async function grava() {
-    let st; try { st = await navigator.mediaDevices.getUserMedia({audio: {noiseSuppression: false, echoCancellation: false, autoGainControl: false, channelCount: 1}}) } catch { return toast('Permita o microfone') }
-    const tipo = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find(t => window.MediaRecorder?.isTypeSupported?.(t)) || '';
-    rec = new MediaRecorder(st, {...(tipo ? {mimeType: tipo} : {}), audioBitsPerSecond: 128000}); chunks = []; t0 = Date.now();
-    rec.ondataavailable = e => chunks.push(e.data);
-    rec.onstop = async () => { st.getTracks().forEach(t => t.stop()); const dur = (Date.now() - t0) / 1000, b = new Blob(chunks, {type: rec.mimeType}); rec = null;
-      if (dur < 1.5) { toast('Muito curta'); return desenha() }
-      const ext = b.type.includes('mp4') ? 'm4a' : 'webm', id = Date.now(), dir = `vozes-proprias/${DEV}/${v.vid}/treino`;
-      toast('Enviando…'); const r = await putArq(`${dir}/t_${id}.${ext}`, await blob64(b), 'treino de voz');
-      if (!r.ok) { toast('Erro ao enviar'); return desenha() }
-      await putArq(`${dir}/t_${id}.txt`, b64txt(textoAtual), 'texto do treino');
-      v.treino_s = (v.treino_s || 0) + dur; await putArq(`vozes-proprias/${DEV}/${v.vid}/voz.json`, b64txt(JSON.stringify({...v, atualizado: Date.now()})), 'voz própria');
-      avanca(); desenha() };
-    rec.start(); $('#trec').textContent = '■ Parar'; $('#trec').style.background = '#ef4444';
-  }
-  desenha();
+  const meta = LS.get('treino.' + v.vid, {fonte: 'especiais', livro: null, cap: 0, par: 0, i: 0, s: 0}); meta.s ??= 0;
+  const salvaMeta = () => LS.set('treino.' + v.vid, meta), cp = o => JSON.parse(JSON.stringify(o));
+  const dir = `vozes-proprias/${DEV}/${v.vid}/treino`, opts = () => { const t = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find(t => window.MediaRecorder?.isTypeSupported?.(t)); return {...(t ? {mimeType: t} : {}), audioBitsPerSecond: 128000} };
+  let stream = null, rec = null, t0 = 0, ultimoToque = 0, texto = '', total = v.treino_s || 0, timer = null, lock = null, vivo = true;
+  const hist = [], fila = []; let enviando = false;
+  /* frases de um parágrafo: junta pedaços curtos (abreviações, "Sim.") */
+  function frases(t) { const out = []; for (const p of (t.match(/[^.!?…]+[.!?…]+["”»')\]]*\s*|[^.!?…]+$/g) || [t])) { const x = p.trim(); if (!x) continue;
+      if (out.length && (out[out.length - 1].length < 25 || x.length < 12)) out[out.length - 1] += ' ' + x; else out.push(x) } return out }
+  async function resolve(pos) { // normaliza a posição e devolve o texto dela
+    if (pos.fonte === 'especiais') return ESPECIAIS[pos.i % ESPECIAIS.length];
+    const l = LIVROS.find(x => x.id === pos.livro); if (!l) { pos.fonte = 'especiais'; return resolve(pos) }
+    const m = await livroMeta(l);
+    for (let tent = 0; tent < 600; tent++) { const c = m.capitulos[pos.cap % m.capitulos.length], d = await cached(`${BASE}/${l.id}/${c.arq}.json`, m.criado, 'json'), p = d.p[pos.par];
+      if (!p) { pos.cap++; pos.par = 0; pos.s = 0; continue }
+      if (p.t && p.t.trim().length > 20 && p.w?.length) { const f = frases(p.t); if (pos.s < f.length) return f[pos.s] }
+      pos.par++; pos.s = 0 }
+    pos.fonte = 'especiais'; return resolve(pos) }
+  const segue = pos => { const n = cp(pos); if (n.fonte === 'especiais') n.i++; else n.s++; return n };
+  const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  function status() { if (!vivo) return; const st = $('#tst'), pend = fila.filter(j => !j.del && !j.cancel).length, min = total / 60;
+    $('#tmin').textContent = min.toFixed(1); $('#tbar').style.width = Math.min(100, min / 30 * 100) + '%';
+    st.textContent = (rec ? `● Gravando ${fmt((Date.now() - t0) / 1000)}` : stream ? 'Pausado' : 'Toque no texto para começar') + (pend ? ` · enviando ${pend}` : ' · tudo salvo ✓');
+    $('#tbx').style.outline = rec ? '3px solid #ef4444' : 'none'; $('#tgo').textContent = stream ? '■ Pausar' : '● Começar'; $('#tgo').style.background = stream ? '#ef4444' : '';
+    $('#tref').disabled = !rec; $('#tvol').disabled = !hist.length }
+  async function mostra() { const pos = cp(meta); texto = await resolve(meta); salvaMeta(); if (!vivo) return;
+    $('#tatual').textContent = texto; $('#tant').textContent = hist.length ? hist[hist.length - 1].texto : '';
+    const n = segue(meta); $('#tprox').textContent = await resolve(n).catch(() => '') }
+  /* fila de envio: um commit por vez (vários ao mesmo tempo dão conflito 409) */
+  const put = (p, b64, msg) => gh('/contents/' + p, {method: 'PUT', body: JSON.stringify({message: msg, content: b64})});
+  function enfileira(j) { fila.push(j); status(); roda() }
+  async function roda() { if (enviando) return; enviando = true;
+    while (fila.length) { const j = fila[0]; let ok = true;
+      try { if (j.del) { const o = j.alvo; if (o.shaA) { await gh('/contents/' + o.pa, {method: 'DELETE', body: JSON.stringify({message: 'desfaz treino', sha: o.shaA})}); o.shaA = null; v.treino_s = Math.max(0, (v.treino_s || 0) - o.dur); j.meta = 1 }
+            if (o.shaT) { await gh('/contents/' + o.pt, {method: 'DELETE', body: JSON.stringify({message: 'desfaz treino', sha: o.shaT})}); o.shaT = null } }
+        else if (!j.cancel) {
+          if (!j.shaA) { const r = await put(j.pa, await blob64(j.blob), 'treino de voz'); if (!r.ok) throw 0; j.shaA = (await r.json()).content.sha; v.treino_s = (v.treino_s || 0) + j.dur; j.meta = 1 }
+          if (!j.shaT) { const r = await put(j.pt, b64txt(j.texto), 'texto do treino'); if (!r.ok) throw 0; j.shaT = (await r.json()).content.sha } } }
+      catch { ok = false; j.tent = (j.tent || 0) + 1; if (j.tent < 5) { await new Promise(r => setTimeout(r, 2000 * j.tent)); continue } toast('Falhou ao enviar um trecho') }
+      fila.shift(); if (j.meta) fila.metaPend = 1; status() }
+    if (fila.metaPend) { fila.metaPend = 0; await putArq(`vozes-proprias/${DEV}/${v.vid}/voz.json`, b64txt(JSON.stringify({...v, treino_s: Math.round(v.treino_s), atualizado: Date.now()})), 'voz própria').catch(() => {}) }
+    enviando = false; status() }
+  /* gravação: um microfone aberto a sessão toda, um arquivo por frase */
+  function novoRec() { rec = new MediaRecorder(stream, opts()); const ch = [], r = rec; r.ondataavailable = e => e.data.size && ch.push(e.data); r._ch = ch; r.start(); t0 = Date.now() }
+  function fechaRec(salvar) { const r = rec; if (!r) return; rec = null; const dur = (Date.now() - t0) / 1000, txt = texto;
+    r.onstop = () => { if (!salvar) return; const b = new Blob(r._ch, {type: r.mimeType}), id = Date.now(), ext = b.type.includes('mp4') ? 'm4a' : 'webm';
+      if (h.desfeito) return; const j = {blob: b, dur, texto: txt, pa: `${dir}/t_${id}.${ext}`, pt: `${dir}/t_${id}.txt`}; h.job = j; enfileira(j) };
+    const h = {meta: cp(meta), texto: txt, dur}; if (salvar) { hist.push(h); total += dur; if (hist.length > 50) hist.shift() }
+    try { r.stop() } catch {} }
+  async function comeca() { if (stream) return;
+    try { stream = await navigator.mediaDevices.getUserMedia({audio: {noiseSuppression: false, echoCancellation: false, autoGainControl: false, channelCount: 1}}) } catch { return toast('Permita o microfone') }
+    try { lock = await navigator.wakeLock?.request('screen') } catch {}
+    novoRec(); timer = setInterval(status, 500); status() }
+  function pausa() { fechaRec(false); stream?.getTracks().forEach(t => t.stop()); stream = null; clearInterval(timer); try { lock?.release() } catch {} lock = null; status() }
+  async function proxima() { const agora = Date.now(); if (agora - ultimoToque < 600) return; ultimoToque = agora;
+    if (!stream) return comeca(); if (!rec) return; if ((agora - t0) < 1000) return;
+    fechaRec(true); if (meta.fonte === 'especiais') meta.i++; else meta.s++; novoRec(); status(); await mostra(); status() }
+  function refaz() { if (!rec) return; fechaRec(false); novoRec(); toast('Gravando de novo esta frase', 1400); status() }
+  async function volta() { const h = hist.pop(); if (!h) return; if (rec) fechaRec(false);
+    total = Math.max(0, total - h.dur); h.desfeito = true; if (h.job) { if (fila.includes(h.job) && !h.job.shaA) h.job.cancel = true; enfileira({del: 1, alvo: h.job}) }
+    Object.assign(meta, h.meta); await mostra(); if (stream) novoRec(); toast('Voltou uma frase — leia de novo', 1600); status() }
+  sheet(`<h2>🎓 Treino completo — ${esc(v.nome)}</h2>
+    <span class="lab">Progresso: <b id="tmin">0</b> de 30 min</span><div style="height:8px;background:var(--bg3);border-radius:8px;overflow:hidden"><div id="tbar" style="height:100%;width:0;background:var(--hl)"></div></div>
+    <span class="lab">O que ler</span><div class="pills" id="tfon"><button data-f="1" class="${meta.fonte === 'especiais' ? 'sel' : ''}">Números, inglês e emoções</button>${LIVROS.filter(l => l.pronto).slice(0, 6).map(l => `<button data-l="${esc(l.id)}" class="${meta.livro === l.id && meta.fonte === 'livro' ? 'sel' : ''}">${esc(l.titulo.slice(0, 28))}</button>`).join('')}</div>
+    <div id="tbx" style="background:var(--bg3);padding:14px;border-radius:14px;margin-top:14px;cursor:pointer;user-select:none;-webkit-user-select:none;min-height:180px;touch-action:manipulation">
+      <div id="tant" style="font:14px/1.4 var(--ff);opacity:.35;margin-bottom:8px"></div>
+      <div id="tatual" style="font:21px/1.55 var(--ff);font-weight:500"></div>
+      <div id="tprox" style="font:15px/1.4 var(--ff);opacity:.45;margin-top:10px"></div>
+      <div style="text-align:center;font-size:12px;opacity:.6;margin-top:12px">toque aqui ao terminar a frase →</div></div>
+    <p id="tst" style="text-align:center;font-size:14px;margin:8px 0"></p>
+    <div style="display:flex;gap:8px"><button class="btn" id="tgo" style="margin:0;flex:1.4">● Começar</button><button class="btn2" id="tref" style="margin:0;flex:1">↺ Refazer</button><button class="btn2" id="tvol" style="margin:0;flex:1">↩ Voltar</button></div>
+    <p class="note">Toque em <b>Começar</b> e leia a frase destacada. Terminou? <b>Toque no texto</b>: ela é salva e já começa a próxima. Errou no meio? <b>Refazer</b> regrava a frase atual. Tocou cedo demais? <b>Voltar</b> apaga a última e repete. Termos em inglês: pronuncie em inglês.</p>`);
+  fimSheet = () => { vivo = false; pausa() };
+  $('#tbx').onclick = proxima; $('#tgo').onclick = () => stream ? pausa() : comeca(); $('#tref').onclick = refaz; $('#tvol').onclick = volta;
+  $('#tfon').querySelectorAll('button').forEach(b => b.onclick = async () => { if (rec) fechaRec(false);
+    if (b.dataset.f) meta.fonte = 'especiais'; else { if (meta.livro !== b.dataset.l) Object.assign(meta, {livro: b.dataset.l, cap: 0, par: 0, s: 0}); meta.fonte = 'livro' }
+    $('#tfon').querySelectorAll('button').forEach(x => x.classList.toggle('sel', x === b)); hist.length = 0; await mostra(); if (stream) novoRec(); status() });
+  document.addEventListener('visibilitychange', function vis() { if (!vivo) return document.removeEventListener('visibilitychange', vis); if (document.hidden && stream) { pausa(); toast('Pausado (tela saiu do app)') } });
+  mostra().then(status);
 }
 
 /* ---------- início ---------- */
